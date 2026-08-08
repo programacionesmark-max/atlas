@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: atlas-estates-online
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_WEB
+        value: 'true'
+      - key: WEB_DIST_PATH
+        value: apps/web/dist
+      - key: DATABASE_DISABLED
+        value: 'true'
+      - key: DATABASE_REQUIRED
+        value: 'false'
+      - key: CORS_ORIGINS
+        value: '*'
+      - key: SESSION_SECRET
+        generateValue: true

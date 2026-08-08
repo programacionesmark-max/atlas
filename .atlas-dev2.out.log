@@ -1,0 +1,28 @@
+ATLAS ESTATES - C:\Users\jamie\Documents\Richup
+Node v22.20.0
+Generando Prisma Client...
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\..\..\node_modules\.pnpm\@prisma+client@6.19.3_prism_1d040ab5215f59f0e27ddee7f0cf082e\node_modules\@prisma\client in 317ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+Compilando el motor de juego...
+Persistencia efimera activada para desarrollo local.
+Web: http://localhost:5173
+API: http://localhost:3001/health
+Pulsa Ctrl+C para detener ambos procesos.
+Scope: 2 of 8 workspace projects
+apps/server dev$ tsx src/index.ts
+apps/web dev$ vite --host 0.0.0.0
+apps/web dev:   [32m[1mVITE[22m v7.3.6[39m  [2mready in [0m[1m936[22m[2m[0m ms[22m
+apps/web dev:   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+apps/web dev:   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.68.201:[1m5173[22m/[39m
+apps/server dev: {"level":30,"time":1786191272279,"pid":7988,"hostname":"PCJamie","msg":"Server listening at http://127.0.0.1:3001"}
+apps/server dev: {"level":30,"time":1786191272279,"pid":7988,"hostname":"PCJamie","msg":"Server listening at http://192.168.68.201:3001"}
+apps/server dev: Failed
+C:\Users\jamie\Documents\Richup\apps\server:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @circuit/server@0.1.0 dev: `tsx src/index.ts`
+Exit status 4294967295

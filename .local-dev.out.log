@@ -1,0 +1,7 @@
+CIRCUIT ESTATES - C:\Users\jamie\Documents\Richup
+Node v22.20.0
+Generando Prisma Client...
+Prisma schema loaded from prisma\schema.prisma
+C:\Users\jamie\Documents\Richup\packages\database:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @circuit/database@0.1.0 generate: `prisma generate`
+Exit status 1

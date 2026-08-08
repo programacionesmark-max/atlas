@@ -1,0 +1,10 @@
+$ prisma generate
+$ tsc -p tsconfig.json
+pnpm --parallel --filter @circuit/server --filter @circuit/web dev termino con codigo -1.
+En C:\Users\jamie\Documents\Richup\start-local.ps1: 43 Car cter: 5
++     throw "pnpm $($PnpmArguments -join ' ') termino con codigo $LASTE ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (pnpm --parallel... con codigo -1.:String) [], RuntimeException
+    + FullyQualifiedErrorId : pnpm --parallel --filter @circuit/server --filter @circuit/web dev termino con codigo -1 
+   .
+ 

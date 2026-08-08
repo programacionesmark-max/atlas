@@ -1,0 +1,45 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "NODE_ENV",
+    "HOST",
+    "PORT",
+    "CORS_ORIGINS",
+    "VITE_SERVER_URL",
+    "DATABASE_URL",
+    "DATABASE_DISABLED",
+    "DATABASE_REQUIRED",
+    "SESSION_SECRET",
+    "SNAPSHOT_EVERY_ACTIONS",
+    "RECONNECT_TTL_MS",
+    "DISCONNECT_GRACE_MS",
+    "LOG_LEVEL",
+    "REDIS_URL",
+    "SERVE_WEB",
+    "WEB_DIST_PATH"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "circuit-estates",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.16.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "corepack pnpm --parallel --filter @circuit/server --filter @circuit/web dev",
+    "dev:web": "corepack pnpm --filter @circuit/web dev",
+    "dev:server": "corepack pnpm --filter @circuit/server dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "test:e2e": "corepack pnpm --filter @circuit/e2e test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "corepack pnpm --filter @circuit/database generate",
+    "db:migrate": "corepack pnpm --filter @circuit/database migrate",
+    "db:studio": "corepack pnpm --filter @circuit/database studio"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.38.0",
+    "@types/node": "^24.10.0",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "vitest": "^4.0.4"
+  }
+}

@@ -1,0 +1,39 @@
+ATLAS ESTATES - C:\Users\jamie\Documents\Richup
+Node v22.20.0
+Generando Prisma Client...
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\..\..\node_modules\.pnpm\@prisma+client@6.19.3_prism_1d040ab5215f59f0e27ddee7f0cf082e\node_modules\@prisma\client in 380ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+Compilando el motor de juego...
+Persistencia efimera activada para desarrollo local.
+Web: http://localhost:5173
+API: http://localhost:3001/health
+Pulsa Ctrl+C para detener ambos procesos.
+Scope: 2 of 8 workspace projects
+apps/server dev$ tsx src/index.ts
+apps/web dev$ vite --host 0.0.0.0
+apps/web dev:   [32m[1mVITE[22m v7.3.6[39m  [2mready in [0m[1m864[22m[2m[0m ms[22m
+apps/web dev:   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+apps/web dev:   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.68.201:[1m5173[22m/[39m
+apps/server dev: {"level":30,"time":1786191348205,"pid":8828,"hostname":"PCJamie","msg":"Server listening at http://127.0.0.1:3001"}
+apps/server dev: {"level":30,"time":1786191348205,"pid":8828,"hostname":"PCJamie","msg":"Server listening at http://192.168.68.201:3001"}
+apps/web dev: [2m14:24:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css, /src/screens/GameScreen.tsx[22m
+apps/web dev: [2m14:24:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/screens/GameScreen.tsx, /src/styles.css[22m
+apps/web dev: [2m14:25:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/audio/sound-manager.ts[22m
+apps/web dev: [2m14:25:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css, /src/screens/GameScreen.tsx[22m
+apps/web dev: [2m14:25:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/SoundControls.tsx, /src/styles.css[22m
+apps/web dev: [2m14:25:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+apps/web dev: [2m14:26:24[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+apps/server dev: {"level":30,"time":1786192191129,"pid":8828,"hostname":"PCJamie","reqId":"req-1","req":{"method":"GET","url":"/health","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64487},"msg":"incoming request"}
+apps/server dev: {"level":30,"time":1786192191134,"pid":8828,"hostname":"PCJamie","reqId":"req-1","res":{"statusCode":200},"responseTime":4.588699999963865,"msg":"request completed"}
+apps/web dev: [2m14:30:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/lib/socket.ts[22m
+apps/web dev: Failed
+C:\Users\jamie\Documents\Richup\apps\web:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @circuit/web@0.1.0 dev: `vite --host 0.0.0.0`
+Exit status 4294967295
+apps/server dev: Failed
