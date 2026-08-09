@@ -1,14 +1,15 @@
 import type { GameMode, RoomSettings } from '@circuit/shared';
 import { Check, ChevronRight, Gavel, Handshake, LockKeyhole, Sparkles, X } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { ATLAS_MAPS, ATLAS_MODES } from '../data/atlas';
+import { getSupportedMapIds } from '../lib/server-capabilities';
 
 const defaultSettings: RoomSettings = {
   name: 'Mesa de Jamie',
   visibility: 'PUBLIC',
   maxPlayers: 4,
-  mapId: 'world-capital-routes',
+  mapId: 'neon-city',
   mode: 'CLASSIC',
   allowSpectators: true,
   rules: {
@@ -56,11 +57,36 @@ export function CreateRoomDrawer({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(initialModeView.id === 'CUSTOM');
+  const [supportedMapIds, setSupportedMapIds] = useState<readonly string[]>([
+    'neon-city',
+    'grand-europe',
+    'americas',
+    'asia-pacific'
+  ]);
+  const availableMaps = useMemo(
+    () => ATLAS_MAPS.filter((map) => supportedMapIds.includes(map.config.id)),
+    [supportedMapIds]
+  );
   const selectedMap = useMemo(
-    () => ATLAS_MAPS.find((map) => map.config.id === settings.mapId) ?? ATLAS_MAPS[0]!,
-    [settings.mapId]
+    () => availableMaps.find((map) => map.config.id === settings.mapId) ?? availableMaps[0]!,
+    [availableMaps, settings.mapId]
   );
   const selectedMode = ATLAS_MODES.find((mode) => mode.id === settings.mode) ?? ATLAS_MODES[0]!;
+
+  useEffect(() => {
+    void getSupportedMapIds().then((mapIds) => {
+      setSupportedMapIds(mapIds);
+      setSettings((current) => {
+        const requestedMapId = initialMapId ?? 'world-capital-routes';
+        const nextMapId = mapIds.includes(requestedMapId)
+          ? requestedMapId
+          : mapIds.includes(current.mapId)
+            ? current.mapId
+            : 'neon-city';
+        return nextMapId === current.mapId ? current : { ...current, mapId: nextMapId };
+      });
+    });
+  }, [initialMapId]);
 
   function updateRule<K extends keyof RoomSettings['rules']>(
     key: K,
@@ -105,7 +131,7 @@ export function CreateRoomDrawer({
             <span>Rutas de hasta 48 casillas</span>
           </div>
           <div className="route-tabs" role="tablist" aria-label="Mapas disponibles">
-            {ATLAS_MAPS.map((map) => (
+            {availableMaps.map((map) => (
               <button
                 key={map.config.id}
                 type="button"

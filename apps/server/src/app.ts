@@ -7,7 +7,7 @@ import { idSchema } from '@circuit/shared';
 
 import { loadServerConfig, type ServerConfig } from './config.js';
 import { PersistenceService } from './persistence.js';
-import { RoomManager } from './room-manager.js';
+import { RoomManager, SUPPORTED_MAP_IDS } from './room-manager.js';
 import { createSocketServer } from './socket-gateway.js';
 import { verifyReconnectToken } from './security.js';
 
@@ -65,6 +65,7 @@ export async function buildServer(overrides: Partial<ServerConfig> = {}): Promis
           ? 'connected'
           : 'disabled'
         : 'unavailable',
+      supportedMaps: SUPPORTED_MAP_IDS,
       timestamp: new Date().toISOString()
     };
   };

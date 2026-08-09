@@ -33,6 +33,16 @@ import type {
 
 import { toEngineAction } from './action-parser.js';
 import { sanitizeChat } from './chat.js';
+
+const SERVER_MAPS = [
+  worldCapitalRoutesMap,
+  neonCityMap,
+  grandEuropeMap,
+  americasMap,
+  asiaPacificMap
+] as const;
+
+export const SUPPORTED_MAP_IDS = SERVER_MAPS.map((map) => map.id);
 import type { ServerConfig } from './config.js';
 import type { ConnectedSession, ManagedMember, ManagedRoom } from './domain.js';
 import { RequestError } from './errors.js';
@@ -711,13 +721,7 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
   }
 
   private resolveMap(mapId: string): MapConfig {
-    const map = [
-      worldCapitalRoutesMap,
-      neonCityMap,
-      grandEuropeMap,
-      americasMap,
-      asiaPacificMap
-    ].find((candidate) => candidate.id === mapId);
+    const map = SERVER_MAPS.find((candidate) => candidate.id === mapId);
     if (map) return map;
     throw new RequestError('BAD_REQUEST', `Map is not available on this server: ${mapId}`);
   }

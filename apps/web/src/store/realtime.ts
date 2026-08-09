@@ -12,6 +12,7 @@ import type {
 import { create } from 'zustand';
 
 import { loadStoredSession, saveStoredSession } from '../lib/session-storage';
+import { getSupportedMapIds } from '../lib/server-capabilities';
 import { socket } from '../lib/socket';
 
 interface RealtimeState {
@@ -131,6 +132,10 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
 
   quickPlay: async () => {
     set({ error: null });
+    const supportedMapIds = await getSupportedMapIds();
+    const preferredMapId = supportedMapIds.includes('world-capital-routes')
+      ? 'world-capital-routes'
+      : 'neon-city';
     const requestQuickPlay = (mapId: string) =>
       requestWithAck<PublicRoomState>('buscar una partida rápida', (ack) => {
         socket.emit(
@@ -141,7 +146,7 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
       });
     let room: PublicRoomState;
     try {
-      room = await requestQuickPlay('world-capital-routes');
+      room = await requestQuickPlay(preferredMapId);
     } catch (error) {
       const unsupportedMap =
         error instanceof Error && error.message.includes('Map is not available on this server');

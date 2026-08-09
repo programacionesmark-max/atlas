@@ -97,7 +97,11 @@ describe('authoritative realtime server', () => {
 
     const ready = await server.app.inject({ method: 'GET', url: '/ready' });
     expect(ready.statusCode).toBe(200);
-    expect(ready.json()).toMatchObject({ status: 'ready', database: 'disabled' });
+    expect(ready.json()).toMatchObject({
+      status: 'ready',
+      database: 'disabled',
+      supportedMaps: expect.arrayContaining(['world-capital-routes', 'neon-city'])
+    });
   });
 
   it('synchronizes a game action and restores a disconnected player session', async () => {
