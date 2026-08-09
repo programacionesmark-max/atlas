@@ -95,3 +95,55 @@ test('two mobile clients can complete the lobby and first synchronized turn with
   await guestContext.close();
   await hostContext.close();
 });
+
+test('an active player can replace a stale game through quick play, creation, and joining', async ({
+  browser
+}) => {
+  const hostContext = await browser.newContext();
+  const guestContext = await browser.newContext();
+  const host = await hostContext.newPage();
+  const guest = await guestContext.newPage();
+
+  await host.goto('/');
+  await host.getByLabel('Nickname').fill('Replacement Host');
+  await host.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect(host).toHaveURL(/\/room\/[A-Z0-9]{6}$/);
+  const firstRoomPath = new URL(host.url()).pathname;
+
+  await guest.goto(firstRoomPath.replace('/room/', '/join/'));
+  await guest.getByLabel('Nickname').fill('Replacement Guest');
+  await guest.getByRole('button', { name: 'Join game', exact: true }).click();
+  await host.getByRole('button', { name: /ready$/i }).click();
+  await guest.getByRole('button', { name: /ready$/i }).click();
+  await host.getByRole('button', { name: 'Start game' }).click();
+  await expect(host).toHaveURL(/\/game\/[a-f0-9-]+$/);
+  await expect(guest).toHaveURL(/\/game\/[a-f0-9-]+$/);
+
+  await host.getByRole('link', { name: 'Atlas Estates home' }).click();
+  await host.getByRole('button', { name: 'Quick play' }).click();
+  await expect(host).toHaveURL(/\/room\/[A-Z0-9]{6}$/);
+  expect(new URL(host.url()).pathname).not.toBe(firstRoomPath);
+  await expect(host.getByRole('heading', { name: 'Quick Play' })).toBeVisible();
+  await expect(guest.getByText(/takes the city/i)).toBeVisible();
+
+  await host.getByRole('link', { name: 'Atlas Estates home' }).click();
+  await host.getByRole('button', { name: 'Create private game' }).click();
+  await host.getByRole('button', { name: 'Crear partida · Clásico' }).click();
+  await expect(host).toHaveURL(/\/room\/[A-Z0-9]{6}$/);
+  const replacementPath = new URL(host.url()).pathname;
+
+  await guest.goto(replacementPath.replace('/room/', '/join/'));
+  await guest.getByRole('button', { name: 'Join game', exact: true }).click();
+  await expect(guest).toHaveURL(replacementPath);
+  await expect(host.getByText('Replacement Guest', { exact: true })).toBeVisible();
+
+  await host.getByRole('button', { name: /ready$/i }).click();
+  await guest.getByRole('button', { name: /ready$/i }).click();
+  await host.getByRole('button', { name: 'Start game' }).click();
+  await expect(host).toHaveURL(/\/game\/[a-f0-9-]+$/);
+  await expect(guest).toHaveURL(new URL(host.url()).pathname);
+  await expect(host.getByText('State #1', { exact: true })).toBeVisible();
+
+  await guestContext.close();
+  await hostContext.close();
+});

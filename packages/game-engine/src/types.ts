@@ -256,6 +256,7 @@ export interface CreateGameInput {
 
 export type GameAction =
   | { readonly type: 'START_GAME'; readonly actorId: string; readonly expectedRevision?: number }
+  | { readonly type: 'FORFEIT_GAME'; readonly actorId: string; readonly expectedRevision?: number }
   | {
       readonly type: 'ROLL_DICE';
       readonly actorId: string;

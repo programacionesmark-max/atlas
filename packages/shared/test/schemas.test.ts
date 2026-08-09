@@ -39,4 +39,21 @@ describe('public protocol schemas', () => {
       }).success
     ).toBe(false);
   });
+
+  it('accepts an explicit existing-room replacement request', () => {
+    expect(
+      createRoomSchema.parse({
+        settings: {
+          name: 'Replacement game',
+          visibility: 'PUBLIC',
+          maxPlayers: 4,
+          mapId: 'neon-city',
+          mode: 'CLASSIC',
+          allowSpectators: false,
+          rules: {}
+        },
+        replaceExisting: true
+      }).replaceExisting
+    ).toBe(true);
+  });
 });

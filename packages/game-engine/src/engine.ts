@@ -1177,6 +1177,96 @@ function handleAction(
       result = checkVictory(result, map);
       return result.phase === 'GAME_OVER' ? result : advanceTurn(result, map, context);
     }
+    case 'FORFEIT_GAME': {
+      const player = state.players[action.actorId];
+      invariant(player?.status === 'ACTIVE', 'INVALID_ACTION', 'Player is not active');
+      const wasCurrentPlayer = currentPlayerId(state) === action.actorId;
+      let result = state;
+      for (const property of Object.values(result.properties).filter(
+        (item) => item.ownerId === action.actorId
+      )) {
+        result = setProperty(result, {
+          ...property,
+          ownerId: null,
+          mortgaged: false,
+          upgradeLevel: 0
+        });
+      }
+      result = updatePlayer(result, action.actorId, (current) => ({
+        ...current,
+        cash: 0,
+        status: 'BANKRUPT',
+        jailedTurns: 0,
+        effects: [],
+        resources: []
+      }));
+      const trades = Object.fromEntries(
+        Object.entries(result.trades).map(([id, trade]) => [
+          id,
+          trade.status === 'OPEN' &&
+          (trade.proposerId === action.actorId || trade.recipientId === action.actorId)
+            ? { ...trade, status: 'CANCELLED' as const }
+            : trade
+        ])
+      );
+      const activeTrade = result.activeTradeId ? trades[result.activeTradeId] : null;
+      const activeTradeCancelled = activeTrade?.status === 'CANCELLED';
+      const paymentDue =
+        result.paymentDue?.debtorId === action.actorId
+          ? null
+          : result.paymentDue?.creditorId === action.actorId
+            ? { ...result.paymentDue, creditorId: null }
+            : result.paymentDue;
+      const auction = result.auction
+        ? {
+            ...result.auction,
+            highestBidderId:
+              result.auction.highestBidderId === action.actorId
+                ? null
+                : result.auction.highestBidderId,
+            currentBid:
+              result.auction.highestBidderId === action.actorId ? 0 : result.auction.currentBid,
+            passedPlayerIds: result.auction.passedPlayerIds.includes(action.actorId)
+              ? result.auction.passedPlayerIds
+              : [...result.auction.passedPlayerIds, action.actorId]
+          }
+        : null;
+      result = activity(
+        {
+          ...result,
+          trades,
+          activeTradeId: activeTradeCancelled ? null : result.activeTradeId,
+          resumePhase: activeTradeCancelled ? null : result.resumePhase,
+          phase: activeTradeCancelled ? (result.resumePhase ?? 'TURN_END') : result.phase,
+          pendingPropertyDecision:
+            result.pendingPropertyDecision?.playerId === action.actorId
+              ? null
+              : result.pendingPropertyDecision,
+          paymentDue,
+          auction
+        },
+        context,
+        'FORFEIT',
+        `${player.name} left the game`,
+        player.id
+      );
+      result = checkVictory(result, map);
+      if (result.phase === 'GAME_OVER') return result;
+      if (!wasCurrentPlayer) return result;
+      return advanceTurn(
+        {
+          ...result,
+          phase: 'TURN_END',
+          pendingPropertyDecision: null,
+          paymentDue: null,
+          auction: null,
+          activeTradeId: null,
+          resumePhase: null
+        },
+        map,
+        context
+      );
+    }
     case 'OFFER_TRADE': {
       assertPhase(state, ['TURN_START', 'TURN_END']);
       assertCurrentPlayer(state, action.actorId);
@@ -1313,7 +1403,7 @@ export function applyGameAction(
   }
   if (state.phase === 'GAME_OVER') throw new GameRuleError('INVALID_PHASE', 'Game is over');
   const next = handleAction(state, action, map, context);
-  assertPhaseTransition(state.phase, next.phase);
+  if (action.type !== 'FORFEIT_GAME') assertPhaseTransition(state.phase, next.phase);
   return finish(next, context);
 }
 

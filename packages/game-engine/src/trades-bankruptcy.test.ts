@@ -78,6 +78,50 @@ describe('validated trades', () => {
 });
 
 describe('bankruptcy and victory', () => {
+  it('forfeits a two-player game and releases every owned asset', () => {
+    let state = started();
+    state = {
+      ...state,
+      properties: {
+        ...state.properties,
+        'pulse-alley': {
+          ...(state.properties['pulse-alley'] as PropertyState),
+          ownerId: 'a',
+          mortgaged: true,
+          upgradeLevel: 0
+        }
+      }
+    };
+    state = apply(state, { type: 'FORFEIT_GAME', actorId: 'a' });
+    expect(state.players.a).toMatchObject({ cash: 0, status: 'BANKRUPT' });
+    expect(state.properties['pulse-alley']).toMatchObject({
+      ownerId: null,
+      mortgaged: false,
+      upgradeLevel: 0
+    });
+    expect(state.phase).toBe('GAME_OVER');
+    expect(state.winnerIds).toEqual(['b']);
+    expect(state.activity.at(-1)).toMatchObject({ type: 'FORFEIT', playerId: 'a' });
+  });
+
+  it('advances past a current player who forfeits in a game with survivors', () => {
+    let state = createGame({
+      gameId: 'three-player-forfeit',
+      map: neonCityMap,
+      players: [
+        { id: 'a', name: 'Ada' },
+        { id: 'b', name: 'Bo' },
+        { id: 'c', name: 'Cy' }
+      ],
+      now: 1
+    });
+    state = apply(state, { type: 'START_GAME', actorId: 'a' });
+    state = apply(state, { type: 'FORFEIT_GAME', actorId: 'a' });
+    expect(state.phase).toBe('TURN_START');
+    expect(state.turnOrder[state.currentPlayerIndex]).toBe('b');
+    expect(state.players.a?.status).toBe('BANKRUPT');
+  });
+
   it('transfers assets to a player creditor and ends a two-player game', () => {
     let state = started();
     state = {

@@ -101,6 +101,13 @@ export function toEngineAction(envelope: GameActionEnvelope, actorId: string): G
         expectedRevision,
         ...parse(empty, envelope.payload)
       };
+    case 'FORFEIT_GAME':
+      return {
+        type: 'FORFEIT_GAME',
+        actorId,
+        expectedRevision,
+        ...parse(empty, envelope.payload)
+      };
     case 'OFFER_TRADE':
       return { type: 'OFFER_TRADE', actorId, expectedRevision, ...parse(offer, envelope.payload) };
     case 'ACCEPT_TRADE':

@@ -95,12 +95,16 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
   createRoom: async (settings, password) => {
     set({ error: null });
     const room = await requestWithAck<PublicRoomState>('crear la sala', (ack) =>
-      socket.emit('room:create', { settings, ...(password ? { password } : {}) }, ack)
+      socket.emit(
+        'room:create',
+        { settings, replaceExisting: true, ...(password ? { password } : {}) },
+        ack
+      )
     ).catch((error: unknown) => {
       set({ error: errorMessage(error) });
       throw error;
     });
-    set({ room, chat: [], events: [] });
+    set({ room, game: null, chat: [], events: [] });
     return room;
   },
 
@@ -109,26 +113,35 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
     const room = await requestWithAck<PublicRoomState>('unirse a la sala', (ack) => {
       socket.emit(
         'room:join',
-        { code: code.toUpperCase(), asSpectator: false, ...(password ? { password } : {}) },
+        {
+          code: code.toUpperCase(),
+          asSpectator: false,
+          replaceExisting: true,
+          ...(password ? { password } : {})
+        },
         ack
       );
     }).catch((error: unknown) => {
       set({ error: errorMessage(error) });
       throw error;
     });
-    set({ room, chat: [], events: [] });
+    set({ room, game: null, chat: [], events: [] });
     return room;
   },
 
   quickPlay: async () => {
     set({ error: null });
     const room = await requestWithAck<PublicRoomState>('buscar una partida rápida', (ack) => {
-      socket.emit('room:quickPlay', { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4 }, ack);
+      socket.emit(
+        'room:quickPlay',
+        { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4, replaceExisting: true },
+        ack
+      );
     }).catch((error: unknown) => {
       set({ error: errorMessage(error) });
       throw error;
     });
-    set({ room, chat: [], events: [] });
+    set({ room, game: null, chat: [], events: [] });
     return room;
   },
 
@@ -266,6 +279,7 @@ function requestWithAck<T>(
 }
 
 let initialized = false;
+let pendingResumedGame: AuthoritativeGameState | null = null;
 
 function applySession(session: SessionReadyPayload): void {
   saveStoredSession({
@@ -276,8 +290,10 @@ function applySession(session: SessionReadyPayload): void {
     identity: session.identity,
     reconnectToken: session.reconnectToken,
     room: session.room,
+    game: pendingResumedGame?.roomId === session.room?.id ? pendingResumedGame : null,
     sessionPending: false
   });
+  pendingResumedGame = null;
 }
 
 export function initializeRealtime(): void {
@@ -297,8 +313,16 @@ export function initializeRealtime(): void {
   socket.on('disconnect', () => useRealtimeStore.setState({ connected: false }));
   socket.on('room:state', (room) => useRealtimeStore.setState({ room }));
   socket.on('rooms:changed', () => void useRealtimeStore.getState().listRooms());
-  socket.on('game:started', (game) => useRealtimeStore.setState({ game }));
-  socket.on('game:state', (game) => useRealtimeStore.setState({ game }));
+  socket.on('game:started', (game) => {
+    const current = useRealtimeStore.getState();
+    if (current.room?.id === game.roomId) useRealtimeStore.setState({ game });
+    else if (!current.room && current.sessionPending) pendingResumedGame = game;
+  });
+  socket.on('game:state', (game) => {
+    const current = useRealtimeStore.getState();
+    if (current.room?.id === game.roomId) useRealtimeStore.setState({ game });
+    else if (!current.room && current.sessionPending) pendingResumedGame = game;
+  });
   socket.on('game:event', (event) =>
     useRealtimeStore.setState((state) => ({ events: [...state.events.slice(-99), event] }))
   );

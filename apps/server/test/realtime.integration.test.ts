@@ -219,6 +219,117 @@ describe('authoritative realtime server', () => {
     });
   });
 
+  it('replaces an active game with a new lobby and forfeits the departing player', async () => {
+    const host = await connectClient(url);
+    const guest = await connectClient(url);
+    sockets.push(host, guest);
+    const hostSession = await createSession(host, 'Replacing Host');
+    const guestSession = await createSession(guest, 'Remaining Guest');
+    if (!hostSession.ok || !guestSession.ok) throw new Error('Session setup failed');
+
+    const created = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      host.emit('room:create', { settings: SETTINGS }, resolve);
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const joined = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      guest.emit('room:join', { code: created.data.code, asSpectator: false }, resolve);
+    });
+    expect(joined.ok).toBe(true);
+    await Promise.all(
+      [host, guest].map(
+        (socket) =>
+          new Promise<Ack<PublicRoomState>>((resolve) => {
+            socket.emit('lobby:setReady', { roomId: created.data.id, ready: true }, resolve);
+          })
+      )
+    );
+    const started = await new Promise<Ack<AuthoritativeGameState>>((resolve) => {
+      host.emit('lobby:start', { roomId: created.data.id }, resolve);
+    });
+    expect(started.ok).toBe(true);
+
+    const guestFinalState = waitForEvent<AuthoritativeGameState>(guest, 'game:state');
+    const replacement = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      host.emit(
+        'room:create',
+        {
+          settings: { ...SETTINGS, name: 'Replacement Lobby' },
+          replaceExisting: true
+        },
+        resolve
+      );
+    });
+    expect(replacement).toMatchObject({
+      ok: true,
+      data: { name: 'Replacement Lobby', status: 'LOBBY', playerCount: 1 }
+    });
+    if (!replacement.ok) throw new Error(replacement.error.message);
+    expect(replacement.data.id).not.toBe(created.data.id);
+    const finalState = await guestFinalState;
+    expect(finalState.state).toMatchObject({
+      phase: 'GAME_OVER',
+      winnerIds: [guestSession.data.identity.playerId]
+    });
+  });
+
+  it('can replace one lobby by joining another without a stale membership conflict', async () => {
+    const first = await connectClient(url);
+    const second = await connectClient(url);
+    sockets.push(first, second);
+    const firstSession = await createSession(first, 'First Lobby');
+    const secondSession = await createSession(second, 'Second Lobby');
+    if (!firstSession.ok || !secondSession.ok) throw new Error('Session setup failed');
+
+    const firstRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      first.emit('room:create', { settings: SETTINGS }, resolve);
+    });
+    const secondRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      second.emit('room:create', { settings: { ...SETTINGS, name: 'Join Target' } }, resolve);
+    });
+    if (!firstRoom.ok || !secondRoom.ok) throw new Error('Lobby setup failed');
+
+    const joined = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      first.emit(
+        'room:join',
+        { code: secondRoom.data.code, asSpectator: false, replaceExisting: true },
+        resolve
+      );
+    });
+    expect(joined).toMatchObject({
+      ok: true,
+      data: { id: secondRoom.data.id, playerCount: 2 }
+    });
+  });
+
+  it('can replace a private lobby through quick play', async () => {
+    const player = await connectClient(url);
+    sockets.push(player);
+    const session = await createSession(player, 'Quick Player');
+    if (!session.ok) throw new Error('Session setup failed');
+    const privateRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      player.emit(
+        'room:create',
+        { settings: { ...SETTINGS, visibility: 'PRIVATE', name: 'Old Private Lobby' } },
+        resolve
+      );
+    });
+    if (!privateRoom.ok) throw new Error(privateRoom.error.message);
+
+    const quickRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      player.emit(
+        'room:quickPlay',
+        { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4, replaceExisting: true },
+        resolve
+      );
+    });
+    expect(quickRoom).toMatchObject({
+      ok: true,
+      data: { status: 'LOBBY', visibility: 'PUBLIC', playerCount: 1 }
+    });
+    if (!quickRoom.ok) throw new Error(quickRoom.error.message);
+    expect(quickRoom.data.id).not.toBe(privateRoom.data.id);
+  });
+
   it('starts an eight-player room without divergent membership', async () => {
     const clients = await Promise.all(Array.from({ length: 8 }, () => connectClient(url)));
     sockets.push(...clients);

@@ -189,13 +189,16 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
     socketId: string
   ): Promise<PublicRoomState> {
     const existingRoom = this.getManagedRoomForPlayer(session.playerId);
-    if (existingRoom)
-      throw new RequestError(
-        'CONFLICT',
-        existingRoom.status === 'IN_GAME' || existingRoom.status === 'STARTING'
-          ? 'You already have an active game. Return to it before creating another lobby.'
-          : 'Leave the current lobby before creating another.'
-      );
+    if (existingRoom) {
+      if (!input.replaceExisting)
+        throw new RequestError(
+          'CONFLICT',
+          existingRoom.status === 'IN_GAME' || existingRoom.status === 'STARTING'
+            ? 'You already have an active game. Return to it before creating another lobby.'
+            : 'Leave the current lobby before creating another.'
+        );
+      await this.abandonRoom(session);
+    }
     const id = randomUUID();
     const member = this.createMember(session, true, socketId, 0);
     const room: ManagedRoom = {
@@ -229,8 +232,6 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
     const roomId = this.roomIdByCode.get(input.code);
     const room = roomId ? this.rooms.get(roomId) : undefined;
     if (!room) throw new RequestError('NOT_FOUND', 'Room not found');
-    if (existingRoom && existingRoom.id !== room.id)
-      throw new RequestError('CONFLICT', 'Leave the current room before joining another');
     const existingMember = room.members.get(session.playerId);
     if (existingMember) {
       existingMember.socketIds.add(socketId);
@@ -249,6 +250,11 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
       (!input.password || !(await verifyPassword(input.password, room.passwordHash)))
     ) {
       throw new RequestError('INVALID_PASSWORD', 'Incorrect room password');
+    }
+    if (existingRoom && existingRoom.id !== room.id) {
+      if (!input.replaceExisting)
+        throw new RequestError('CONFLICT', 'Leave the current room before joining another');
+      await this.abandonRoom(session);
     }
     const member = this.createMember(
       session,
@@ -281,16 +287,49 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
         this.playerCount(room) < room.settings.maxPlayers
     );
     if (candidate)
-      return this.joinRoom(session, { code: candidate.code, asSpectator: false }, socketId);
-    return this.createRoom(session, { settings: this.quickPlaySettings(input) }, socketId);
+      return this.joinRoom(
+        session,
+        {
+          code: candidate.code,
+          asSpectator: false,
+          replaceExisting: input.replaceExisting
+        },
+        socketId
+      );
+    return this.createRoom(
+      session,
+      { settings: this.quickPlaySettings(input), replaceExisting: input.replaceExisting },
+      socketId
+    );
   }
 
-  async leaveRoom(session: ConnectedSession): Promise<void> {
+  private async abandonRoom(session: ConnectedSession): Promise<void> {
+    const room = this.getManagedRoomForPlayer(session.playerId);
+    if (!room) return;
+    const player = room.game?.state.players[session.playerId];
+    if (room.status === 'IN_GAME' && room.game && player?.status === 'ACTIVE') {
+      await this.applyAction(
+        session.playerId,
+        {
+          roomId: room.id,
+          action: {
+            actionId: randomUUID(),
+            expectedVersion: room.game.state.revision,
+            type: 'FORFEIT_GAME'
+          }
+        },
+        true
+      );
+    }
+    await this.leaveRoom(session, true);
+  }
+
+  async leaveRoom(session: ConnectedSession, force = false): Promise<void> {
     const room = this.requireRoomForPlayer(session.playerId);
     await room.queue.run(async () => {
       const member = room.members.get(session.playerId);
       if (!member) return;
-      if (room.status === 'IN_GAME') {
+      if (room.status === 'IN_GAME' && !force) {
         member.connected = false;
         member.socketIds.clear();
       } else {

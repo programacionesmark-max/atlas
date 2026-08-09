@@ -67,7 +67,8 @@ export const listRoomsSchema = z
 export const createRoomSchema = z
   .object({
     settings: roomSettingsSchema,
-    password: roomPasswordSchema.optional()
+    password: roomPasswordSchema.optional(),
+    replaceExisting: z.boolean().optional()
   })
   .strict()
   .superRefine((value, context) => {
@@ -85,7 +86,8 @@ export const joinRoomSchema = z
   .object({
     code: roomCodeSchema,
     password: roomPasswordSchema.optional(),
-    asSpectator: z.boolean().default(false)
+    asSpectator: z.boolean().default(false),
+    replaceExisting: z.boolean().optional()
   })
   .strict();
 
@@ -93,7 +95,8 @@ export const quickPlaySchema = z
   .object({
     mode: z.enum(GAME_MODES).default('CLASSIC'),
     mapId: z.string().trim().min(2).max(64).default('neon-city'),
-    maxPlayers: z.number().int().min(2).max(8).default(4)
+    maxPlayers: z.number().int().min(2).max(8).default(4),
+    replaceExisting: z.boolean().optional()
   })
   .strict();
 
