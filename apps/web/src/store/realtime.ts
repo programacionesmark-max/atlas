@@ -131,16 +131,29 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
 
   quickPlay: async () => {
     set({ error: null });
-    const room = await requestWithAck<PublicRoomState>('buscar una partida rápida', (ack) => {
-      socket.emit(
-        'room:quickPlay',
-        { mode: 'CLASSIC', mapId: 'world-capital-routes', maxPlayers: 4, replaceExisting: true },
-        ack
-      );
-    }).catch((error: unknown) => {
-      set({ error: errorMessage(error) });
-      throw error;
-    });
+    const requestQuickPlay = (mapId: string) =>
+      requestWithAck<PublicRoomState>('buscar una partida rápida', (ack) => {
+        socket.emit(
+          'room:quickPlay',
+          { mode: 'CLASSIC', mapId, maxPlayers: 4, replaceExisting: true },
+          ack
+        );
+      });
+    let room: PublicRoomState;
+    try {
+      room = await requestQuickPlay('world-capital-routes');
+    } catch (error) {
+      const unsupportedMap =
+        error instanceof Error && error.message.includes('Map is not available on this server');
+      if (!unsupportedMap) {
+        set({ error: errorMessage(error) });
+        throw error;
+      }
+      room = await requestQuickPlay('neon-city').catch((fallbackError: unknown) => {
+        set({ error: errorMessage(fallbackError) });
+        throw fallbackError;
+      });
+    }
     set({ room, game: null, chat: [], events: [] });
     return room;
   },
