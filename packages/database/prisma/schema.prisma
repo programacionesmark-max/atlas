@@ -1,0 +1,458 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum RoomStatus {
+  LOBBY
+  STARTING
+  IN_GAME
+  FINISHED
+}
+
+enum RoomMemberRole {
+  PLAYER
+  SPECTATOR
+}
+
+enum GameStatus {
+  STARTING
+  ACTIVE
+  PAUSED
+  FINISHED
+  ABANDONED
+}
+
+enum GameMode {
+  CLASSIC
+  BLITZ
+  CHAOS
+  TYCOON
+  TEAMS
+  BATTLE_ROYALE
+  DUEL
+  LAND_RUSH
+  CUSTOM
+}
+
+enum GamePlayerStatus {
+  ACTIVE
+  DISCONNECTED
+  BANKRUPT
+  SPECTATING
+  FINISHED
+}
+
+enum TransactionType {
+  INITIAL_GRANT
+  BANK_DEPOSIT
+  BANK_WITHDRAWAL
+  PLAYER_TRANSFER
+  PROPERTY_PURCHASE
+  PROPERTY_SALE
+  RENT
+  TAX
+  REWARD
+  FINE
+  MORTGAGE
+  UNMORTGAGE
+  UPGRADE_PURCHASE
+  UPGRADE_SALE
+  AUCTION_PURCHASE
+  TRADE
+  LOAN
+  LOAN_REPAYMENT
+  INTEREST
+  EVENT
+  BANKRUPTCY_TRANSFER
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum CosmeticType {
+  TOKEN
+  DICE
+  TRAIL
+  AVATAR
+  BOARD_EFFECT
+  EMOTE
+  VICTORY_ANIMATION
+}
+
+enum CosmeticRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id               String          @id @default(uuid()) @db.Uuid
+  email            String?         @unique @db.VarChar(320)
+  passwordHash     String?         @db.VarChar(255)
+  username         String          @unique @db.VarChar(24)
+  role             UserRole        @default(USER)
+  isGuest          Boolean         @default(false)
+  emailVerifiedAt  DateTime?
+  lastSeenAt       DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  profile          Profile?
+  statistics       UserStatistics?
+  sessions         UserSession[]
+  hostedRooms      Room[]          @relation("RoomHost")
+  roomMemberships  RoomMember[]
+  gamePlayers      GamePlayer[]
+  cosmetics        UserCosmetic[]
+  sentFriendships  Friendship[]    @relation("FriendshipRequester")
+  gotFriendships   Friendship[]    @relation("FriendshipAddressee")
+  reportsCreated   Report[]        @relation("ReportCreator")
+  reportsReceived  Report[]        @relation("ReportSubject")
+  recentAsUser     RecentPlayer[]  @relation("RecentUser")
+  recentAsOpponent RecentPlayer[]  @relation("RecentOpponent")
+
+  @@index([isGuest, lastSeenAt])
+}
+
+model Profile {
+  userId      String   @id @db.Uuid
+  displayName String   @db.VarChar(40)
+  avatarId    String   @default("avatar-orbit") @db.VarChar(64)
+  bio         String?  @db.VarChar(240)
+  locale      String   @default("en") @db.VarChar(10)
+  level       Int      @default(1)
+  xp          Int      @default(0)
+  mmr         Int      @default(1000)
+  favoriteMap String?  @db.VarChar(64)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique @db.Char(64)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Room {
+  id              String         @id @default(uuid()) @db.Uuid
+  code            String         @unique @db.Char(6)
+  name            String         @db.VarChar(40)
+  hostUserId      String         @db.Uuid
+  visibility      RoomVisibility @default(PUBLIC)
+  status          RoomStatus     @default(LOBBY)
+  passwordHash    String?        @db.VarChar(255)
+  maxPlayers      Int
+  mapId           String         @db.VarChar(64)
+  mode            GameMode
+  allowSpectators Boolean        @default(false)
+  settings        Json
+  version         Int            @default(0)
+  lastActivityAt  DateTime       @default(now())
+  closedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  host            User           @relation("RoomHost", fields: [hostUserId], references: [id])
+  members         RoomMember[]
+  games           Game[]
+
+  @@index([visibility, status, createdAt])
+  @@index([status, lastActivityAt])
+}
+
+model RoomMember {
+  id            String         @id @default(uuid()) @db.Uuid
+  roomId        String         @db.Uuid
+  userId        String         @db.Uuid
+  playerId      String         @db.Uuid
+  nickname      String         @db.VarChar(24)
+  role          RoomMemberRole @default(PLAYER)
+  ready         Boolean        @default(false)
+  connected     Boolean        @default(true)
+  isHost        Boolean        @default(false)
+  customization Json
+  joinedAt      DateTime       @default(now())
+  leftAt        DateTime?
+  room          Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@unique([roomId, playerId])
+  @@index([playerId])
+}
+
+model MapDefinition {
+  id         String   @id @db.VarChar(64)
+  name       String   @db.VarChar(80)
+  version    Int      @default(1)
+  definition Json
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  games      Game[]
+}
+
+model Game {
+  id              String         @id @default(uuid()) @db.Uuid
+  roomId          String         @db.Uuid
+  mapId           String         @db.VarChar(64)
+  mapVersion      Int            @default(1)
+  mode            GameMode
+  status          GameStatus     @default(STARTING)
+  rules           Json
+  engineVersion   String         @db.VarChar(32)
+  seedCommitment  String?        @db.Char(64)
+  currentRevision Int            @default(0)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  room            Room           @relation(fields: [roomId], references: [id])
+  map             MapDefinition? @relation(fields: [mapId], references: [id])
+  players         GamePlayer[]
+  events          GameEvent[]
+  transactions    Transaction[]
+  snapshots       GameSnapshot[]
+  result          MatchResult?
+
+  @@index([roomId, status])
+  @@index([status, updatedAt])
+}
+
+model GamePlayer {
+  id                   String             @id @default(uuid()) @db.Uuid
+  gameId               String             @db.Uuid
+  userId               String?            @db.Uuid
+  playerId             String             @db.Uuid
+  seat                 Int
+  nickname             String             @db.VarChar(24)
+  status               GamePlayerStatus   @default(ACTIVE)
+  team                 Int?
+  finalCash            Int?
+  finalNetWorth        Int?
+  placement            Int?
+  connectedAt          DateTime           @default(now())
+  disconnectedAt       DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  game                 Game               @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user                 User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  outgoingTransactions Transaction[]      @relation("TransactionFrom")
+  incomingTransactions Transaction[]      @relation("TransactionTo")
+  result               MatchResultPlayer?
+
+  @@unique([gameId, playerId])
+  @@unique([gameId, seat])
+  @@index([userId, createdAt])
+}
+
+model GameEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  gameId        String   @db.Uuid
+  sequence      Int
+  revision      Int
+  type          String   @db.VarChar(64)
+  actorPlayerId String?  @db.Uuid
+  actionId      String?  @db.Uuid
+  payload       Json
+  createdAt     DateTime @default(now())
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, sequence])
+  @@unique([gameId, actionId])
+  @@index([gameId, revision])
+}
+
+model Transaction {
+  id               String          @id @db.VarChar(128)
+  gameId           String          @db.Uuid
+  sequence         Int
+  fromGamePlayerId String?         @db.Uuid
+  toGamePlayerId   String?         @db.Uuid
+  type             TransactionType
+  amount           Int
+  balanceBefore    Int?
+  balanceAfter     Int?
+  propertyId       String?         @db.VarChar(64)
+  metadata         Json?
+  createdAt        DateTime        @default(now())
+  game             Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  fromPlayer       GamePlayer?     @relation("TransactionFrom", fields: [fromGamePlayerId], references: [id], onDelete: SetNull)
+  toPlayer         GamePlayer?     @relation("TransactionTo", fields: [toGamePlayerId], references: [id], onDelete: SetNull)
+
+  @@unique([gameId, sequence])
+  @@index([fromGamePlayerId, createdAt])
+  @@index([toGamePlayerId, createdAt])
+}
+
+model GameSnapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  gameId        String   @db.Uuid
+  revision      Int
+  eventSequence Int
+  schemaVersion Int      @default(1)
+  state         Json
+  checksum      String   @db.Char(64)
+  createdAt     DateTime @default(now())
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, revision])
+  @@index([gameId, createdAt])
+}
+
+model MatchResult {
+  id             String              @id @default(uuid()) @db.Uuid
+  gameId         String              @unique @db.Uuid
+  winnerPlayerId String?             @db.Uuid
+  victoryReason  String              @db.VarChar(64)
+  durationMs     Int
+  roundsPlayed   Int
+  recap          Json
+  createdAt      DateTime            @default(now())
+  game           Game                @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  players        MatchResultPlayer[]
+}
+
+model MatchResultPlayer {
+  id                  String      @id @default(uuid()) @db.Uuid
+  matchResultId       String      @db.Uuid
+  gamePlayerId        String      @unique @db.Uuid
+  placement           Int
+  cash                Int
+  netWorth            Int
+  rentEarned          Int         @default(0)
+  propertiesOwned     Int         @default(0)
+  propertiesPurchased Int         @default(0)
+  tradesCompleted     Int         @default(0)
+  biggestTransaction  Int         @default(0)
+  xpAwarded           Int         @default(0)
+  mmrDelta            Int         @default(0)
+  result              MatchResult @relation(fields: [matchResultId], references: [id], onDelete: Cascade)
+  gamePlayer          GamePlayer  @relation(fields: [gamePlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchResultId, placement])
+}
+
+model UserStatistics {
+  userId              String   @id @db.Uuid
+  gamesPlayed         Int      @default(0)
+  wins                Int      @default(0)
+  losses              Int      @default(0)
+  totalMoneyEarned    BigInt   @default(0)
+  biggestFortune      Int      @default(0)
+  propertiesPurchased Int      @default(0)
+  bankruptcies        Int      @default(0)
+  tradesCompleted     Int      @default(0)
+  rentCollected       BigInt   @default(0)
+  currentWinStreak    Int      @default(0)
+  bestWinStreak       Int      @default(0)
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Friendship {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @db.Uuid
+  addresseeId String           @db.Uuid
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+  updatedAt   DateTime         @updatedAt
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+}
+
+model RecentPlayer {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  opponentId   String   @db.Uuid
+  lastGameId   String?  @db.Uuid
+  gamesPlayed  Int      @default(1)
+  lastPlayedAt DateTime @default(now())
+  user         User     @relation("RecentUser", fields: [userId], references: [id], onDelete: Cascade)
+  opponent     User     @relation("RecentOpponent", fields: [opponentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, opponentId])
+  @@index([userId, lastPlayedAt])
+}
+
+model Cosmetic {
+  id        String         @id @db.VarChar(64)
+  type      CosmeticType
+  name      String         @db.VarChar(80)
+  rarity    CosmeticRarity @default(COMMON)
+  assetKey  String         @db.VarChar(255)
+  metadata  Json?
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  owners    UserCosmetic[]
+}
+
+model UserCosmetic {
+  userId     String   @db.Uuid
+  cosmeticId String   @db.VarChar(64)
+  equipped   Boolean  @default(false)
+  unlockedAt DateTime @default(now())
+  source     String   @db.VarChar(40)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cosmetic   Cosmetic @relation(fields: [cosmeticId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cosmeticId])
+  @@index([userId, equipped])
+}
+
+model Report {
+  id            String       @id @default(uuid()) @db.Uuid
+  reporterId    String       @db.Uuid
+  subjectUserId String?      @db.Uuid
+  gameId        String?      @db.Uuid
+  category      String       @db.VarChar(40)
+  description   String       @db.VarChar(1000)
+  evidence      Json?
+  status        ReportStatus @default(OPEN)
+  resolution    String?      @db.VarChar(1000)
+  createdAt     DateTime     @default(now())
+  resolvedAt    DateTime?
+  reporter      User         @relation("ReportCreator", fields: [reporterId], references: [id], onDelete: Cascade)
+  subject       User?        @relation("ReportSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([subjectUserId, createdAt])
+}

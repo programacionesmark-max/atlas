@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,10 +14,12 @@ services:
       - key: WEB_DIST_PATH
         value: apps/web/dist
       - key: DATABASE_DISABLED
-        value: 'true'
-      - key: DATABASE_REQUIRED
         value: 'false'
+      - key: DATABASE_REQUIRED
+        value: 'true'
+      - key: DATABASE_URL
+        sync: false
       - key: CORS_ORIGINS
-        value: '*'
+        sync: false
       - key: SESSION_SECRET
         generateValue: true

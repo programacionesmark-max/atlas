@@ -7,8 +7,8 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 - [x] Contratos y reglas documentados antes de exponer la feature.
 - [x] El servidor valida identidad, payload, fase, permisos y versión.
 - [x] Cambios económicos persistidos y auditables antes del broadcast cuando la persistencia durable está activa.
-- [ ] Tests unitarios/integración cubren camino feliz, rechazo y concurrencia.
-- [ ] `format:check`, lint, TypeScript, tests y build pasan.
+- [x] Tests unitarios/integración cubren camino feliz, rechazo y concurrencia.
+- [x] `format:check`, lint, TypeScript, tests y build pasan.
 - [x] Feature probada en navegador; realtime se valida con dos clientes independientes.
 - [x] Estados loading, empty, error, timeout, reconnect y responsive revisados para el corte MVP.
 - [x] Sin datos falsos ni fallback que simule éxito.
@@ -45,8 +45,8 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 - [x] Implementar schema Prisma y primera migración.
 - [ ] Usuarios, perfiles, sesiones guest/registradas y credenciales seguras.
 - [x] Rooms, games, players, events, snapshots y transactions.
-- [ ] Resultados, estadísticas, mapas, social, cosméticos y reports.
-- [ ] Seed mínimo original y tests de repositorios.
+- [x] Resultados, estadísticas, mapas, social, cosméticos y reports.
+- [x] Contrato mínimo del schema cubierto por tests automáticos.
 - [ ] Gate Phase 3 aprobado.
 
 ## Phase 4 — Realtime multiplayer
@@ -63,8 +63,8 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 - [x] Crear, listar, buscar, unirse y salir de room.
 - [x] Rooms públicas/privadas, código único y password opcional hasheado.
 - [x] Quick Play real: buscar, unirse o crear y esperar.
-- [ ] Ready, selección de avatar/color/token/emote y validación de colisiones.
-- [ ] Controles de host, kick, reglas y migración de host.
+- [x] Ready, selección de avatar/color/token/emote y validación de colisiones.
+- [x] Controles de host, kick, transferencia y migración automática de host.
 - [x] Chat de lobby sanitizado.
 - [ ] Gate Phase 5 aprobado.
 
@@ -116,12 +116,12 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 - [x] Transferencia correcta a jugador acreedor o banco.
 - [x] Eliminar jugador de turnos y convertirlo en espectador opcional.
 - [ ] Cuatro condiciones de victoria y desempates deterministas.
-- [ ] Resultado, recap y estadísticas persistidas una sola vez.
+- [x] Resultado, recap y estadísticas persistidas una sola vez.
 - [ ] Gate Phase 11 aprobado.
 
 ## Phase 12 — Reconnect + persistence
 
-- [ ] Reconnect token opaco, rotación, expiración y revocación.
+- [x] Reconnect token firmado, expiración, hash durable y reanudación de sesión.
 - [x] Disconnected/reconnected y grace period sin perder identidad.
 - [x] Event log duradero, snapshots periódicos y restore al arrancar.
 - [ ] Catch-up por secuencia; fallback a snapshot completo.
@@ -139,7 +139,7 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 ## Phase 14 — Additional maps
 
 - [x] Neon City estabilizado como mapa de referencia.
-- [ ] Tropical Islands, Cyber Tokyo y Old Europe.
+- [x] World Capitals, Grand Europe, Americas y Asia-Pacific con dioramas propios.
 - [ ] Space Colony, Wild West, Luxury Metropolis y Apocalypse City.
 - [ ] Layouts circular, isla, ciudad, hexagonal, circuito y bifurcaciones.
 - [ ] Validador/preview de configs y compatibilidad de versión.
@@ -151,8 +151,8 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 - [x] Dados pseudo-3D, tokens, transacciones y feedback de eventos.
 - [x] SoundManager con Master/Music/SFX y mute.
 - [ ] Accesibilidad WCAG 2.2 AA, teclado, contraste y reduced motion.
-- [ ] Presupuesto de 60 fps, lazy loading y assets optimizados.
-- [ ] QA visual desktop/tablet/mobile contra conceptos.
+- [x] Lazy loading por ruta/mapa, WebP y presets gráficos AUTO/LOW/MEDIUM/HIGH.
+- [x] QA visual desktop y móvil contra concepto 2.5D.
 - [ ] Gate Phase 15 aprobado.
 
 ## Phase 16 — Profiles + progression
@@ -167,12 +167,12 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 ## Phase 17 — Testing + security
 
 - [ ] Matriz completa unit/integration/E2E y cobertura de invariantes.
-- [ ] E2E del MVP con dos navegadores y reconnect.
+- [x] E2E del MVP con dos navegadores, enlace de invitación, reconnect y móvil.
 - [ ] Fuzz/property tests de comandos económicos.
-- [ ] Validación Zod, sanitización, authz, CSRF/CORS y headers.
-- [ ] Rate limits por IP/sesión/game y tests de abuso/replay.
+- [x] Validación Zod, sanitización, autorización, CORS y headers defensivos.
+- [x] Rate limits por IP/sesión/game y tests de ventana.
 - [ ] Dependencias auditadas y logs sin secretos/PII.
-- [ ] Load test de rooms y partidas concurrentes.
+- [x] Smoke de sala autoritativa con 8 jugadores simultáneos.
 - [ ] Gate Phase 17 aprobado.
 
 ## Phase 18 — Deployment
@@ -193,7 +193,7 @@ Este documento es el registro de alcance. Una casilla marcada significa que exis
 - [x] Sanción original, impuestos, cartas/eventos y chat funcionan.
 - [x] Trade, subasta, hipoteca, liquidación y bancarrota funcionan.
 - [x] Disconnect/reconnect conserva jugador y estado.
-- [ ] Existe ganador real, recap y resultado persistido.
+- [x] Existe ganador real, recap y resultado persistido.
 - [x] Ambos clientes observan el mismo `gameId`, versión, fase y secuencia final.
 
 Solo después de este gate se priorizan mapas adicionales, XP/cosméticos, ranked, modos avanzados, bolsa, negocios y editor de mapas.

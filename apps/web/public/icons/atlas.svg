@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Atlas Estates">
+  <rect width="512" height="512" rx="112" fill="#173d52"/>
+  <circle cx="256" cy="256" r="174" fill="none" stroke="#d4b16c" stroke-width="14"/>
+  <path d="M256 64 286 226 448 256 286 286 256 448 226 286 64 256 226 226Z" fill="#d4b16c" opacity=".28"/>
+  <circle cx="256" cy="256" r="126" fill="#f8f2e6" stroke="#d4b16c" stroke-width="8"/>
+  <text x="256" y="325" text-anchor="middle" fill="#173d52" font-family="Georgia,serif" font-size="210" font-weight="700">A</text>
+</svg>

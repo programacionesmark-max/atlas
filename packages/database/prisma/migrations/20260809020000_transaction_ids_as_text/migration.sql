@@ -1,0 +1,3 @@
+ALTER TABLE "Transaction"
+ALTER COLUMN "id" TYPE VARCHAR(128)
+USING "id"::text;

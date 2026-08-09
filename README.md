@@ -2,7 +2,7 @@
 
 Juego web multijugador de economía y propiedades con identidad original. De 2 a 8 jugadores recorren el mundo, compran ciudades, negocian activos y sobreviven a una economía dinámica. El navegador presenta el juego; el servidor es la única autoridad sobre turnos, azar, movimiento, dinero y propiedad.
 
-> Estado actual: **primer MVP multijugador funcional en entorno local**. Dos clientes independientes pueden crear/unirse, preparar e iniciar una partida, jugar turnos autoritativos, comprar y negociar propiedades, hipotecar, subastar, chatear y reconectarse. Los turnos, subastas y ofertas sin respuesta se resuelven de forma segura al vencer su temporizador. El despliegue público y las fases avanzadas siguen pendientes; consulta [PLAN.md](./PLAN.md) para ver el alcance verificable.
+> Estado actual: **candidato de producción multijugador**. Además del flujo jugable autoritativo, incluye PostgreSQL obligatorio en producción, restore con checksum, recap persistente, revancha, enlaces de invitación, rate limits, CI y una mesa 2.5D responsive. El despliegue público requiere publicar este workspace en el repositorio conectado y completar las variables del proveedor; consulta [PLAN.md](./PLAN.md) para el alcance verificable.
 
 El cliente incluye audio procedural original: ambiente musical y efectos para dados, movimiento, compras, alquileres, dinero, eventos, notificaciones, trades, bancarrota y victoria. El botón de altavoz abre controles persistentes de volumen general, música, efectos y mute.
 
@@ -102,6 +102,8 @@ No copies secretos reales al repositorio. Para detener la infraestructura local 
 | `CORS_ORIGINS`           | server          | orígenes permitidos, separados por comas                     |
 | `VITE_SERVER_URL`        | web             | URL pública HTTP/Socket.IO del backend                       |
 | `PORT`                   | server          | puerto de escucha local                                      |
+| `SERVE_WEB`              | server          | sirve el bundle web desde el mismo proceso en producción     |
+| `WEB_DIST_PATH`          | server          | ruta del bundle Vite; por defecto `apps/web/dist`            |
 | `DATABASE_URL`           | server/database | conexión PostgreSQL usada por Prisma                         |
 | `DATABASE_DISABLED`      | server          | `true` activa el modo efímero local explícito                |
 | `DATABASE_REQUIRED`      | server          | exige persistencia; producción la activa si la DB está on    |
@@ -163,16 +165,20 @@ pnpm build
 pnpm test:e2e
 ```
 
-Una fase no se marca completa hasta superar build, lint, TypeScript y su batería de tests. La suite Playwright automatiza dos contextos independientes para crear/unirse, ready/start, sincronizar una tirada y reconectar. La matriz ampliada de compra, evento, trade, subasta e hipoteca también se verificó manualmente en navegador; bancarrota y victoria permanecen cubiertas en el engine hasta completar su E2E dirigido.
+Una fase no se marca completa hasta superar build, lint, TypeScript y su batería de tests. Ningún workspace usa `--passWithNoTests`. Playwright automatiza dos contextos independientes, entrada mediante enlace `/join/CODE`, ready/start, tirada sincronizada, reconexión y viewport móvil sin overflow. Engine e integración cubren economía, trade, subasta, bancarrota, victoria, recap y temporizadores.
 
 ## Despliegue
 
-- Web: Vercel, con `apps/web` como root o filtro de monorepo.
-- Server: Railway, Render o Fly.io como proceso Node persistente con soporte WebSocket.
-- Datos: PostgreSQL gestionado con backups y point-in-time recovery.
-- Escala horizontal: Redis gestionado, Socket.IO Redis adapter y propiedad/lease explícito por partida.
+La topología preparada es **Vercel (web) + Render (Fastify/Socket.IO persistente) + Neon PostgreSQL**. Render conserva una sola réplica de game server; Neon es la fuente durable y Vercel sirve el bundle estático. El contenedor también puede servir la web como fallback en un solo dominio.
 
-El backend no se despliega como funciones serverless de corta duración: mantiene conexiones WebSocket y timers autoritativos. La guía de build, migración, health checks, CORS y rollout está en [docs/deployment.md](./docs/deployment.md).
+1. Publica el repositorio en GitHub.
+2. En Render elige **New > Blueprint** y selecciona el repositorio.
+3. Configura `DATABASE_URL`, `CORS_ORIGINS` y los secretos en Render. El Blueprint exige DB y comprueba `/ready`.
+4. Comparte la URL `https://atlas-estates-online-….onrender.com` con el segundo jugador.
+
+El plan gratuito puede detener el servicio cuando no recibe tráfico; la primera apertura posterior tardará más. El `Dockerfile` ejecuta `prisma migrate deploy` antes de aceptar tráfico y la aplicación falla cerrada si PostgreSQL no está disponible. No aumentes a varias réplicas hasta implementar ownership/leases distribuidos.
+
+Para una prueba pública inmediata sin cuenta de hosting también se puede ejecutar un Cloudflare Quick Tunnel contra el servidor unificado. Es solo para testing: la URL cambia al reiniciar y el PC debe permanecer encendido. La guía completa de build, health checks, CORS, persistencia y rollout está en [docs/deployment.md](./docs/deployment.md).
 
 ## Documentación
 
