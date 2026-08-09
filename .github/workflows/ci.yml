@@ -45,5 +45,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      - run: pnpm build
       - run: pnpm --filter @circuit/e2e exec playwright install --with-deps chromium
       - run: pnpm test:e2e
