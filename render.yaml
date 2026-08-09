@@ -4,6 +4,7 @@ services:
     runtime: docker
     plan: free
     region: frankfurt
+    autoDeployTrigger: commit
     dockerfilePath: ./Dockerfile
     healthCheckPath: /ready
     envVars:
