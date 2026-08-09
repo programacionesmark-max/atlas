@@ -9,6 +9,7 @@ import {
   CryptoRandomSource,
   grandEuropeMap,
   neonCityMap,
+  worldCapitalRoutesMap,
   type GameRules,
   type GameState,
   type MapConfig
@@ -710,15 +711,20 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
   }
 
   private resolveMap(mapId: string): MapConfig {
-    const map = [neonCityMap, grandEuropeMap, americasMap, asiaPacificMap].find(
-      (candidate) => candidate.id === mapId
-    );
+    const map = [
+      worldCapitalRoutesMap,
+      neonCityMap,
+      grandEuropeMap,
+      americasMap,
+      asiaPacificMap
+    ].find((candidate) => candidate.id === mapId);
     if (map) return map;
     throw new RequestError('BAD_REQUEST', `Map is not available on this server: ${mapId}`);
   }
 
   private quickPlaySettings(input: QuickPlayInput): RoomSettings {
-    return {
+    const map = this.resolveMap(input.mapId);
+    const settings: RoomSettings = {
       name: 'Quick Play',
       visibility: 'PUBLIC',
       maxPlayers: input.maxPlayers,
@@ -726,7 +732,7 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
       mode: input.mode,
       allowSpectators: true,
       rules: {
-        startingCash: 1_500,
+        startingCash: map.economy.startingCash,
         turnTimerSeconds: 45,
         victoryMode: 'LAST_PLAYER_STANDING',
         maxRounds: input.mode === 'BLITZ' ? 20 : null,
@@ -735,6 +741,20 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
         tradesEnabled: true,
         economicEventsEnabled: true,
         doublesExtraRoll: true
+      }
+    };
+    const effective = modeRules(settings);
+    return {
+      ...settings,
+      rules: {
+        ...settings.rules,
+        startingCash: effective.startingCash ?? settings.rules.startingCash,
+        turnTimerSeconds: ((effective.turnTimeMs ?? 0) / 1000) as 0 | 15 | 30 | 45 | 60,
+        victoryMode: effective.victoryMode ?? settings.rules.victoryMode,
+        maxRounds: effective.maxRounds ?? settings.rules.maxRounds,
+        netWorthTarget: effective.netWorthTarget ?? settings.rules.netWorthTarget,
+        auctionsEnabled: effective.auctionsEnabled ?? settings.rules.auctionsEnabled,
+        economicEventsEnabled: effective.eventDeckEnabled ?? settings.rules.economicEventsEnabled
       }
     };
   }

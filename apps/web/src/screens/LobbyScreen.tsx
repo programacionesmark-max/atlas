@@ -274,6 +274,7 @@ function title(value: string): string {
   return value.charAt(0) + value.slice(1).toLowerCase().replaceAll('_', ' ');
 }
 function mapName(value: string): string {
+  if (value === 'world-capital-routes') return 'Rutas del Mundo';
   if (value === 'neon-city') return 'World Capitals';
   return value.split('-').map(title).join(' ');
 }

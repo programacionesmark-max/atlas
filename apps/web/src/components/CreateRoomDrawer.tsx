@@ -8,7 +8,7 @@ const defaultSettings: RoomSettings = {
   name: 'Mesa de Jamie',
   visibility: 'PUBLIC',
   maxPlayers: 4,
-  mapId: 'neon-city',
+  mapId: 'world-capital-routes',
   mode: 'CLASSIC',
   allowSpectators: true,
   rules: {
@@ -102,7 +102,7 @@ export function CreateRoomDrawer({
         <section className="route-picker" aria-labelledby="route-title">
           <div className="picker-heading">
             <h3 id="route-title">Mapa</h3>
-            <span>32 casillas por circuito</span>
+            <span>Rutas de hasta 48 casillas</span>
           </div>
           <div className="route-tabs" role="tablist" aria-label="Mapas disponibles">
             {ATLAS_MAPS.map((map) => (

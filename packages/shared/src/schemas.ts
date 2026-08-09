@@ -94,7 +94,7 @@ export const joinRoomSchema = z
 export const quickPlaySchema = z
   .object({
     mode: z.enum(GAME_MODES).default('CLASSIC'),
-    mapId: z.string().trim().min(2).max(64).default('neon-city'),
+    mapId: z.string().trim().min(2).max(64).default('world-capital-routes'),
     maxPlayers: z.number().int().min(2).max(8).default(4),
     replaceExisting: z.boolean().optional()
   })

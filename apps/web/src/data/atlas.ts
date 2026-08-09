@@ -3,6 +3,7 @@ import {
   asiaPacificMap,
   grandEuropeMap,
   neonCityMap,
+  worldCapitalRoutesMap,
   type MapConfig,
   type PropertyConfig,
   type TileType
@@ -45,6 +46,11 @@ const legacyRegions: Readonly<Record<string, string>> = {
 const mapPresentation: Readonly<
   Record<string, Pick<AtlasMapView, 'image' | 'eyebrow' | 'accent'>>
 > = {
+  'world-capital-routes': {
+    image: '/assets/world-diorama.webp',
+    eyebrow: '32 ciudades · 16 países · 6 aeropuertos',
+    accent: '#173d52'
+  },
   'neon-city': {
     image: '/assets/world-diorama.webp',
     eyebrow: 'Ruta global · 16 ciudades',
@@ -68,6 +74,7 @@ const mapPresentation: Readonly<
 };
 
 export const ATLAS_MAP_CONFIGS = [
+  worldCapitalRoutesMap,
   neonCityMap,
   grandEuropeMap,
   americasMap,

@@ -134,7 +134,7 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
     const room = await requestWithAck<PublicRoomState>('buscar una partida rápida', (ack) => {
       socket.emit(
         'room:quickPlay',
-        { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4, replaceExisting: true },
+        { mode: 'CLASSIC', mapId: 'world-capital-routes', maxPlayers: 4, replaceExisting: true },
         ack
       );
     }).catch((error: unknown) => {

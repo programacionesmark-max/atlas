@@ -6,6 +6,7 @@ export * from './state-machine.js';
 export * from './economy.js';
 export * from './events/events.js';
 export * from './maps/neon-city.js';
+export * from './maps/world-capital-routes.js';
 export * from './maps/atlas-maps.js';
 export * from './engine.js';
 export * from './serialization.js';

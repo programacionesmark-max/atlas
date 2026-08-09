@@ -1,4 +1,4 @@
-import type { GameState } from '@circuit/game-engine';
+import type { GameState, MapConfig } from '@circuit/game-engine';
 import type { PublicRoomState } from '@circuit/shared';
 import { AnimatePresence, motion, useReducedMotion, type MotionStyle } from 'framer-motion';
 import {
@@ -116,9 +116,30 @@ export function GameBoard({
     [room.players]
   );
   const map = useMemo(() => getAtlasMap(state.mapId), [state.mapId]);
-  const points = useMemo(
-    () => routePointsForMap(state.mapId, map.tiles.length),
-    [map.tiles.length, state.mapId]
+  const points = useMemo(() => routePointsForMap(map.config), [map.config]);
+  const tileIndexById = useMemo(
+    () => new Map(map.tiles.map((tile, index) => [tile.id, index])),
+    [map.tiles]
+  );
+  const countryGroups = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    for (const property of map.config.properties) {
+      const current = groups.get(property.group) ?? [];
+      current.push(property.id);
+      groups.set(property.group, current);
+    }
+    return groups;
+  }, [map.config.properties]);
+  const flightConnections = useMemo(
+    () =>
+      map.config.tiles.flatMap((tile) =>
+        (tile.flightOptions ?? []).flatMap((option) => {
+          const from = tileIndexById.get(tile.id);
+          const to = tileIndexById.get(option.destinationTileId);
+          return from === undefined || to === undefined ? [] : [{ from, to, fee: option.fee }];
+        })
+      ),
+    [map.config.tiles, tileIndexById]
   );
   const currentId = state.turnOrder[state.currentPlayerIndex];
   const currentTileId = currentId ? state.players[currentId]?.positionTileId : undefined;
@@ -154,7 +175,7 @@ export function GameBoard({
 
   return (
     <section
-      className={`board-stage world-route-board graphics-${effectiveGraphics.toLowerCase()}${cinematic ? ' is-cinematic' : ''}`}
+      className={`board-stage world-route-board graphics-${effectiveGraphics.toLowerCase()}${cinematic ? ' is-cinematic' : ''}${map.tiles.length > 40 ? ' is-dense' : ''}`}
       aria-label={`${map.config.name} world route board`}
     >
       <motion.img
@@ -205,6 +226,14 @@ export function GameBoard({
               />
             ))
           : null}
+        {flightConnections.map(({ from, to, fee }) => (
+          <path
+            className="route-branch route-branch--flight"
+            d={curvePath(points[from]!, points[to]!, true)}
+            data-fee={fee}
+            key={`flight-${from}-${to}`}
+          />
+        ))}
       </svg>
 
       <div className="world-route-nodes">
@@ -218,10 +247,22 @@ export function GameBoard({
             ? Math.round(tile.price * state.rules.propertyPriceMultiplier)
             : undefined;
           const property = tile.kind === 'PROPERTY';
+          const propertyConfig = map.properties.get(tile.id);
+          const countryPropertyIds = propertyConfig
+            ? (countryGroups.get(propertyConfig.group) ?? [])
+            : [];
+          const countryComplete = Boolean(
+            owner &&
+            countryPropertyIds.length > 1 &&
+            countryPropertyIds.every(
+              (propertyId) => state.properties[propertyId]?.ownerId === propertyState?.ownerId
+            )
+          );
+          const upgradeLevel = propertyState?.upgradeLevel ?? 0;
           return (
             <button
               type="button"
-              className={`route-node route-node--${property ? 'city' : 'stop'} route-node--${tile.kind.toLowerCase()}${owner ? ' is-owned' : ''}${tile.id === currentTileId ? ' is-current' : ''}${point.x > 82 ? ' is-right-edge' : ''}${point.x < 18 ? ' is-left-edge' : ''}`}
+              className={`route-node route-node--${property ? 'city' : 'stop'} route-node--${tile.kind.toLowerCase()}${owner ? ' is-owned' : ''}${countryComplete ? ' is-complete-country' : ''}${upgradeLevel ? ' is-developed' : ''}${tile.id === currentTileId ? ' is-current' : ''}${point.x > 82 ? ' is-right-edge' : ''}${point.x < 18 ? ' is-left-edge' : ''}`}
               key={tile.id}
               style={
                 {
@@ -239,11 +280,21 @@ export function GameBoard({
                 <strong>{tile.name}</strong>
                 <small>
                   {effectivePrice
-                    ? `$${effectivePrice.toLocaleString()}`
+                    ? `${tile.region ? `${tile.region} · ` : ''}$${effectivePrice.toLocaleString()}`
                     : tile.kind.replaceAll('_', ' ')}
                 </small>
               </span>
               {owner ? <i className="route-owner" style={{ background: owner.color }} /> : null}
+              {upgradeLevel ? (
+                <span
+                  className="route-node__development"
+                  aria-label={`${upgradeLevel} improvements`}
+                >
+                  {Array.from({ length: upgradeLevel }, (_, level) => (
+                    <i key={level} />
+                  ))}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -261,6 +312,18 @@ export function GameBoard({
                 playerColor={roomByPlayer.get(player.id)?.color ?? '#f2efe8'}
                 positionIndex={Math.max(0, positionIndex)}
                 points={points}
+                tileIndexById={tileIndexById}
+                movementId={
+                  state.lastMovement?.playerId === player.id ? state.lastMovement.id : null
+                }
+                movementTileIds={
+                  state.lastMovement?.playerId === player.id
+                    ? state.lastMovement.tileIds
+                    : undefined
+                }
+                movementMode={
+                  state.lastMovement?.playerId === player.id ? state.lastMovement.mode : 'GROUND'
+                }
                 tokenIndex={tokenIndex}
                 reduceMotion={Boolean(reduceMotion)}
               />
@@ -341,6 +404,10 @@ function RouteToken({
   playerColor,
   positionIndex,
   points,
+  tileIndexById,
+  movementId,
+  movementTileIds,
+  movementMode,
   tokenIndex,
   reduceMotion
 }: {
@@ -349,6 +416,10 @@ function RouteToken({
   playerColor: string;
   positionIndex: number;
   points: readonly RoutePoint[];
+  tileIndexById: ReadonlyMap<string, number>;
+  movementId: string | null;
+  movementTileIds: readonly string[] | undefined;
+  movementMode: 'GROUND' | 'FLIGHT';
   tokenIndex: number;
   reduceMotion: boolean;
 }) {
@@ -356,14 +427,21 @@ function RouteToken({
   const [path, setPath] = useState<readonly RoutePoint[]>(() => [points[positionIndex]!]);
 
   useEffect(() => {
-    const pathIndexes = movementIndexes(previousIndex.current, positionIndex, points.length);
+    const tracedIndexes = movementTileIds?.flatMap((tileId) => {
+      const index = tileIndexById.get(tileId);
+      return index === undefined ? [] : [index];
+    });
+    const pathIndexes =
+      tracedIndexes?.length && tracedIndexes.at(-1) === positionIndex
+        ? tracedIndexes
+        : movementIndexes(previousIndex.current, positionIndex, points.length);
     setPath(pathIndexes.map((index) => points[index]!));
     previousIndex.current = positionIndex;
-  }, [points, positionIndex]);
+  }, [movementId, movementTileIds, points, positionIndex, tileIndexById]);
 
   return (
     <motion.div
-      className="route-token"
+      className={`route-token${path.length > 1 ? ' is-moving' : ''}${movementMode === 'FLIGHT' ? ' is-flying' : ''}`}
       style={
         {
           color: playerColor,
@@ -384,11 +462,13 @@ function RouteToken({
       }}
       transition={{
         left: {
-          duration: reduceMotion ? 0.05 : Math.max(0.8, (path.length - 1) * 0.24),
+          delay: reduceMotion ? 0 : 0.72,
+          duration: reduceMotion ? 0.05 : Math.max(1.05, (path.length - 1) * 0.38),
           ease: 'easeInOut'
         },
         top: {
-          duration: reduceMotion ? 0.05 : Math.max(0.8, (path.length - 1) * 0.24),
+          delay: reduceMotion ? 0 : 0.72,
+          duration: reduceMotion ? 0.05 : Math.max(1.05, (path.length - 1) * 0.38),
           ease: 'easeInOut'
         },
         scale: { duration: reduceMotion ? 0.05 : 0.65 }
@@ -399,6 +479,7 @@ function RouteToken({
     >
       <span className="route-token__head" />
       <span className="route-token__body" />
+      {movementMode === 'FLIGHT' ? <Plane className="route-token__plane" /> : null}
       <span className="route-token__shadow" />
     </motion.div>
   );
@@ -443,11 +524,13 @@ function movementIndexes(from: number, to: number, length: number): number[] {
   return Array.from({ length: forwardSteps + 1 }, (_, step) => (from + step) % length);
 }
 
-function routePointsForMap(mapId: string, tileCount: number): readonly RoutePoint[] {
-  if (mapId === 'neon-city' && tileCount === WORLD_CAPITAL_POINTS.length)
+function routePointsForMap(config: MapConfig): readonly RoutePoint[] {
+  if (config.tiles.every((tile) => tile.mapPosition))
+    return config.tiles.map((tile) => tile.mapPosition as RoutePoint);
+  if (config.id === 'neon-city' && config.tiles.length === WORLD_CAPITAL_POINTS.length)
     return WORLD_CAPITAL_POINTS;
-  return Array.from({ length: tileCount }, (_, index) => {
-    const angle = (index / tileCount) * Math.PI * 2 - Math.PI / 2;
+  return Array.from({ length: config.tiles.length }, (_, index) => {
+    const angle = (index / config.tiles.length) * Math.PI * 2 - Math.PI / 2;
     const radiusX = 35 + Math.sin(index * 1.7) * 4;
     const radiusY = 30 + Math.cos(index * 1.3) * 5;
     return { x: 50 + Math.cos(angle) * radiusX, y: 52 + Math.sin(angle) * radiusY };

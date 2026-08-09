@@ -4,6 +4,7 @@ export type GamePhase =
   | 'TURN_START'
   | 'ROLLING'
   | 'MOVING'
+  | 'FLIGHT_DECISION'
   | 'LANDING'
   | 'PROPERTY_DECISION'
   | 'PAYMENT'
@@ -44,6 +45,17 @@ export interface TileConfig {
   readonly amount?: number;
   readonly destinationTileId?: string;
   readonly eventDeck?: string;
+  readonly mapPosition?: {
+    readonly x: number;
+    readonly y: number;
+  };
+  readonly flightOptions?: readonly FlightOption[];
+}
+
+export interface FlightOption {
+  readonly destinationTileId: string;
+  readonly fee: number;
+  readonly label: string;
 }
 
 export interface PropertyConfig {
@@ -145,6 +157,7 @@ export type TransactionType =
   | 'UNMORTGAGE'
   | 'UPGRADE_PURCHASE'
   | 'UPGRADE_SALE'
+  | 'FLIGHT'
   | 'BANKRUPTCY';
 
 export interface Transaction {
@@ -210,6 +223,20 @@ export interface PendingPropertyDecision {
   readonly propertyId: string;
 }
 
+export interface PendingFlightDecision {
+  readonly playerId: string;
+  readonly airportTileId: string;
+  readonly remainingSteps: number;
+  readonly options: readonly FlightOption[];
+}
+
+export interface MovementTrace {
+  readonly id: string;
+  readonly playerId: string;
+  readonly tileIds: readonly string[];
+  readonly mode: 'GROUND' | 'FLIGHT';
+}
+
 export interface GameState {
   readonly schemaVersion: 1;
   readonly gameId: string;
@@ -229,6 +256,8 @@ export interface GameState {
   readonly transactions: readonly Transaction[];
   readonly activity: readonly ActivityEntry[];
   readonly pendingPropertyDecision: PendingPropertyDecision | null;
+  readonly pendingFlightDecision: PendingFlightDecision | null;
+  readonly lastMovement: MovementTrace | null;
   readonly paymentDue: PaymentDue | null;
   readonly auction: AuctionState | null;
   readonly trades: Readonly<Record<string, TradeOffer>>;
@@ -261,6 +290,17 @@ export type GameAction =
       readonly type: 'ROLL_DICE';
       readonly actorId: string;
       readonly pathChoices?: readonly string[];
+      readonly expectedRevision?: number;
+    }
+  | {
+      readonly type: 'TAKE_FLIGHT';
+      readonly actorId: string;
+      readonly destinationTileId: string;
+      readonly expectedRevision?: number;
+    }
+  | {
+      readonly type: 'DECLINE_FLIGHT';
+      readonly actorId: string;
       readonly expectedRevision?: number;
     }
   | { readonly type: 'BUY_PROPERTY'; readonly actorId: string; readonly expectedRevision?: number }

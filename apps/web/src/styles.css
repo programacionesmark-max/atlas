@@ -4652,3 +4652,345 @@ select:focus-visible {
     border-radius: 0;
   }
 }
+
+/* Country portfolios, visible development and paid flight branches. */
+.route-branch--flight {
+  stroke: rgb(86 220 235 / 0.68);
+  stroke-width: 1.55;
+  stroke-dasharray: 1.5 4;
+  animation-duration: 4.8s;
+}
+
+.world-route-board.is-dense .route-node--city {
+  width: 17px;
+  height: 17px;
+}
+
+.world-route-board.is-dense .route-node__label {
+  bottom: 14px;
+  max-width: 126px;
+  min-width: 0;
+  padding: 3px 5px;
+  white-space: nowrap;
+}
+
+.world-route-board.is-dense .route-node--city:nth-child(even) .route-node__label {
+  top: 14px;
+  bottom: auto;
+}
+
+.world-route-board.is-dense .route-node__label strong {
+  font-size: clamp(0.4rem, 0.53vw, 0.57rem);
+}
+
+.world-route-board.is-dense .route-node__label small {
+  font-size: clamp(0.35rem, 0.44vw, 0.48rem);
+}
+
+.route-node.is-complete-country {
+  border-color: #8ce7a7;
+  box-shadow:
+    0 0 0 4px rgb(25 111 66 / 0.68),
+    0 0 22px rgb(83 235 139 / 0.82);
+}
+
+.route-node.is-developed .route-node__pin {
+  color: #fff6ce;
+  background: radial-gradient(circle, #aa722d 0 38%, #15384a 42%);
+}
+
+.route-node__development {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  display: flex;
+  gap: 2px;
+  transform: translateX(-50%);
+}
+
+.route-node__development i {
+  width: 4px;
+  height: 7px;
+  border: 1px solid #fff1c4;
+  border-radius: 1px 1px 0 0;
+  background: #d6973c;
+  box-shadow: 0 0 4px #e7b35e;
+}
+
+.route-token.is-moving::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: 4px;
+  width: 9px;
+  height: 22px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.48;
+  filter: blur(7px);
+  animation: token-travel-pulse 0.48s ease-in-out infinite alternate;
+}
+
+.route-token__plane {
+  position: absolute;
+  z-index: 4;
+  top: -15px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+  color: #082335;
+  background: #dffaff;
+  border: 1px solid #6be0ee;
+  border-radius: 50%;
+  box-shadow: 0 0 18px #62e2f3;
+  transform: rotate(32deg);
+}
+
+@keyframes token-travel-pulse {
+  to {
+    transform: translateY(7px) scale(1.35);
+    opacity: 0.12;
+  }
+}
+
+.country-portfolio,
+.development-status {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 9px;
+  color: #d8ccb8;
+  background: rgb(255 255 255 / 0.055);
+  border: 1px solid rgb(213 172 96 / 0.28);
+  border-radius: 8px;
+}
+
+.country-portfolio.is-complete {
+  color: #eaffef;
+  background: rgb(45 135 80 / 0.18);
+  border-color: rgb(104 222 144 / 0.58);
+}
+
+.country-portfolio > span,
+.development-status > svg {
+  display: grid;
+  flex: 0 0 29px;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  color: #e0b867;
+}
+
+.country-portfolio svg {
+  width: 19px;
+}
+
+.country-portfolio div,
+.development-status span {
+  display: grid;
+  gap: 2px;
+}
+
+.country-portfolio small,
+.development-status small {
+  color: #cba964;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.country-portfolio p {
+  margin: 2px 0 0;
+  color: inherit;
+  font-size: 0.65rem;
+  line-height: 1.35;
+}
+
+.flight-choice-backdrop {
+  position: fixed;
+  z-index: 220;
+  inset: 62px 0 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: radial-gradient(circle at center, rgb(3 25 39 / 0.38), rgb(1 10 17 / 0.78));
+  backdrop-filter: blur(5px);
+}
+
+.flight-choice {
+  width: min(720px, calc(100vw - 32px));
+  padding: 22px;
+  color: #f8edd9;
+  background: linear-gradient(145deg, rgb(9 45 65 / 0.98), rgb(3 23 37 / 0.99));
+  border: 1px solid #cda65e;
+  border-radius: 18px;
+  box-shadow:
+    0 28px 80px rgb(0 7 12 / 0.7),
+    inset 0 1px rgb(255 255 255 / 0.08);
+}
+
+.flight-choice__heading {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.flight-choice__heading > span {
+  display: grid;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  color: #12374c;
+  background: linear-gradient(145deg, #effcff, #8ee7f0);
+  border-radius: 50%;
+  box-shadow: 0 0 25px rgb(92 223 236 / 0.52);
+}
+
+.flight-choice__heading small {
+  color: #72dce7;
+  font-size: 0.63rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.flight-choice__heading h2 {
+  margin: 2px 0 4px;
+  color: #fff4d9;
+  font:
+    700 1.6rem/1.05 Georgia,
+    serif;
+}
+
+.flight-choice__heading p {
+  margin: 0;
+  color: #c8d6d8;
+  font-size: 0.8rem;
+}
+
+.flight-choice__routes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.flight-choice__routes button {
+  position: relative;
+  min-height: 132px;
+  display: grid;
+  grid-template-columns: 25px 1fr;
+  gap: 8px;
+  align-content: start;
+  padding: 14px;
+  color: #f7edda;
+  text-align: left;
+  background: rgb(255 255 255 / 0.065);
+  border: 1px solid rgb(128 218 228 / 0.34);
+  border-radius: 11px;
+}
+
+.flight-choice__routes button:not(:disabled):hover {
+  background: rgb(99 220 233 / 0.16);
+  border-color: #76dce7;
+  transform: translateY(-3px);
+}
+
+.flight-choice__routes button > svg {
+  color: #75dce7;
+}
+
+.flight-choice__routes button span {
+  display: grid;
+  gap: 5px;
+}
+
+.flight-choice__routes button small,
+.flight-choice__routes button em {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: #b9c9cb;
+  font-size: 0.64rem;
+  font-style: normal;
+}
+
+.flight-choice__routes button small svg,
+.flight-choice__routes button em svg {
+  width: 12px;
+  height: 12px;
+}
+
+.flight-choice__routes button em {
+  grid-column: 2;
+  color: #e5bd70;
+  font-weight: 800;
+}
+
+.flight-choice__routes button i {
+  grid-column: 1 / -1;
+  color: #e6978d;
+  font-size: 0.61rem;
+  font-style: normal;
+}
+
+.flight-choice__ground {
+  width: 100%;
+  min-height: 43px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  color: #e8d9bd;
+  background: transparent;
+  border: 1px solid rgb(220 184 116 / 0.48);
+  border-radius: 9px;
+}
+
+@media (max-width: 760px) {
+  .flight-choice-backdrop {
+    inset: 56px 0 62px;
+    padding: 10px;
+  }
+
+  .flight-choice {
+    max-height: 100%;
+    overflow: auto;
+    padding: 15px;
+  }
+
+  .flight-choice__heading > span {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .flight-choice__heading h2 {
+    font-size: 1.2rem;
+  }
+
+  .flight-choice__routes {
+    grid-template-columns: 1fr;
+  }
+
+  .flight-choice__routes button {
+    min-height: 88px;
+  }
+
+  .world-route-board.is-dense .route-node__label small {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-token.is-moving::before,
+  .route-branch--flight {
+    animation: none !important;
+  }
+}

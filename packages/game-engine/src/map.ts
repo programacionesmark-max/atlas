@@ -33,6 +33,31 @@ export function validateMapConfig(map: MapConfig): void {
         'VALIDATION_FAILED',
         `Tile ${tile.id} has an unknown destination`
       );
+    if (tile.mapPosition) {
+      invariant(
+        Number.isFinite(tile.mapPosition.x) &&
+          tile.mapPosition.x >= 0 &&
+          tile.mapPosition.x <= 100 &&
+          Number.isFinite(tile.mapPosition.y) &&
+          tile.mapPosition.y >= 0 &&
+          tile.mapPosition.y <= 100,
+        'VALIDATION_FAILED',
+        `Tile ${tile.id} has an invalid map position`
+      );
+    }
+    for (const option of tile.flightOptions ?? []) {
+      invariant(tile.type === 'TELEPORT', 'VALIDATION_FAILED', `Tile ${tile.id} is not an airport`);
+      invariant(
+        tiles.has(option.destinationTileId),
+        'VALIDATION_FAILED',
+        `Tile ${tile.id} has an unknown flight destination`
+      );
+      invariant(
+        Number.isSafeInteger(option.fee) && option.fee > 0,
+        'VALIDATION_FAILED',
+        `Tile ${tile.id} has an invalid flight fee`
+      );
+    }
   }
 }
 

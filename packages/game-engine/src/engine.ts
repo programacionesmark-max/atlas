@@ -132,6 +132,8 @@ export function createGame(input: CreateGameInput): GameState {
     })),
     activity: [],
     pendingPropertyDecision: null,
+    pendingFlightDecision: null,
+    lastMovement: null,
     paymentDue: null,
     auction: null,
     trades: {},
@@ -243,17 +245,25 @@ function payOrCreateDebt(
   };
 }
 
+interface MovementResult {
+  readonly state: GameState;
+  readonly stoppedForFlight: boolean;
+}
+
 function movePlayer(
   state: GameState,
   map: MapConfig,
   playerId: string,
   steps: number,
   pathChoices: readonly string[],
-  context: EngineContext
-): GameState {
+  context: EngineContext,
+  initialTrace?: readonly string[],
+  mode: 'GROUND' | 'FLIGHT' = 'GROUND'
+): MovementResult {
   let result = state;
   let position = result.players[playerId]?.positionTileId;
   invariant(position, 'NOT_FOUND', 'Moving player not found');
+  const trace = initialTrace?.length ? [...initialTrace] : [position];
   let choiceIndex = 0;
   for (let step = 0; step < steps; step++) {
     const currentTile = getTile(map, position);
@@ -268,6 +278,7 @@ function movePlayer(
     }
     invariant(next, 'VALIDATION_FAILED', `No path from ${currentTile.id}`);
     position = next;
+    trace.push(next);
     result = updatePlayer(result, playerId, (player) => ({
       ...player,
       positionTileId: next as string
@@ -291,8 +302,47 @@ function movePlayer(
         playerId
       );
     }
+    const reachedTile = getTile(map, position);
+    if (reachedTile.type === 'TELEPORT' && reachedTile.flightOptions?.length) {
+      return {
+        stoppedForFlight: true,
+        state: activity(
+          {
+            ...result,
+            phase: 'FLIGHT_DECISION',
+            pendingFlightDecision: {
+              playerId,
+              airportTileId: reachedTile.id,
+              remainingSteps: steps - step - 1,
+              options: reachedTile.flightOptions
+            },
+            lastMovement: {
+              id: context.idFactory(),
+              playerId,
+              tileIds: trace,
+              mode
+            }
+          },
+          context,
+          'FLIGHT_OFFERED',
+          `${result.players[playerId]?.name ?? playerId} reached ${reachedTile.name}`,
+          playerId
+        )
+      };
+    }
   }
-  return result;
+  return {
+    stoppedForFlight: false,
+    state: {
+      ...result,
+      lastMovement: {
+        id: context.idFactory(),
+        playerId,
+        tileIds: trace,
+        mode
+      }
+    }
+  };
 }
 
 function consumeShield(state: GameState, playerId: string): GameState {
@@ -512,6 +562,17 @@ function resolveLanding(
       return { ...result, phase: 'TURN_END' };
     }
     case 'TELEPORT': {
+      if (tile.flightOptions?.length)
+        return {
+          ...result,
+          phase: 'FLIGHT_DECISION',
+          pendingFlightDecision: {
+            playerId,
+            airportTileId: tile.id,
+            remainingSteps: 0,
+            options: tile.flightOptions
+          }
+        };
       if (!tile.destinationTileId) return { ...result, phase: 'TURN_END' };
       result = updatePlayer(result, playerId, (value) => ({
         ...value,
@@ -840,7 +901,7 @@ function handleAction(
       }
       if (player.jailedTurns > 0)
         result = updatePlayer(result, action.actorId, (value) => ({ ...value, jailedTurns: 0 }));
-      result = movePlayer(
+      const movement = movePlayer(
         { ...result, phase: 'MOVING' },
         map,
         action.actorId,
@@ -848,7 +909,97 @@ function handleAction(
         action.pathChoices ?? [],
         context
       );
-      return resolveLanding(result, map, action.actorId, context);
+      if (movement.stoppedForFlight) return movement.state;
+      return resolveLanding(movement.state, map, action.actorId, context);
+    }
+    case 'TAKE_FLIGHT': {
+      assertPhase(state, ['FLIGHT_DECISION']);
+      assertCurrentPlayer(state, action.actorId);
+      const pending = state.pendingFlightDecision;
+      invariant(pending?.playerId === action.actorId, 'INVALID_ACTION', 'No flight decision');
+      const option = pending.options.find(
+        (candidate) => candidate.destinationTileId === action.destinationTileId
+      );
+      invariant(option, 'VALIDATION_FAILED', 'That flight is not available');
+      const player = state.players[action.actorId];
+      invariant(
+        player && player.cash >= option.fee,
+        'INSUFFICIENT_FUNDS',
+        'Not enough cash to fly'
+      );
+      let result = postTransaction(
+        state,
+        {
+          fromPlayerId: action.actorId,
+          toPlayerId: null,
+          amount: option.fee,
+          type: 'FLIGHT',
+          metadata: {
+            airportTileId: pending.airportTileId,
+            destinationTileId: option.destinationTileId
+          }
+        },
+        context
+      );
+      result = updatePlayer(result, action.actorId, (value) => ({
+        ...value,
+        positionTileId: option.destinationTileId
+      }));
+      result = activity(
+        {
+          ...result,
+          phase: 'MOVING',
+          pendingFlightDecision: null,
+          lastMovement: {
+            id: context.idFactory(),
+            playerId: action.actorId,
+            tileIds: [pending.airportTileId, option.destinationTileId],
+            mode: 'FLIGHT'
+          }
+        },
+        context,
+        'FLIGHT_TAKEN',
+        `${player.name} paid ${option.fee} and flew to ${getTile(map, option.destinationTileId).name}`,
+        action.actorId
+      );
+      if (pending.remainingSteps === 0) return resolveLanding(result, map, action.actorId, context);
+      const movement = movePlayer(
+        result,
+        map,
+        action.actorId,
+        pending.remainingSteps,
+        [],
+        context,
+        [pending.airportTileId, option.destinationTileId],
+        'FLIGHT'
+      );
+      if (movement.stoppedForFlight) return movement.state;
+      return resolveLanding(movement.state, map, action.actorId, context);
+    }
+    case 'DECLINE_FLIGHT': {
+      assertPhase(state, ['FLIGHT_DECISION']);
+      assertCurrentPlayer(state, action.actorId);
+      const pending = state.pendingFlightDecision;
+      invariant(pending?.playerId === action.actorId, 'INVALID_ACTION', 'No flight decision');
+      let result = activity(
+        { ...state, phase: 'MOVING', pendingFlightDecision: null },
+        context,
+        'FLIGHT_DECLINED',
+        `${state.players[action.actorId]?.name ?? action.actorId} continued by land`,
+        action.actorId
+      );
+      if (pending.remainingSteps === 0) return { ...result, phase: 'TURN_END' };
+      const movement = movePlayer(
+        result,
+        map,
+        action.actorId,
+        pending.remainingSteps,
+        [],
+        context,
+        [pending.airportTileId]
+      );
+      if (movement.stoppedForFlight) return movement.state;
+      return resolveLanding(movement.state, map, action.actorId, context);
     }
     case 'BUY_PROPERTY': {
       assertPhase(state, ['PROPERTY_DECISION']);

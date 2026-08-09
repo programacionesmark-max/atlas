@@ -30,6 +30,8 @@ export function nextTimedGameAction(state: GameState): TimedGameAction | null {
       return { actorId: currentPlayerId, type: 'ROLL_DICE', payload: {}, dueAt };
     case 'PROPERTY_DECISION':
       return { actorId: currentPlayerId, type: 'DECLINE_PROPERTY', payload: {}, dueAt };
+    case 'FLIGHT_DECISION':
+      return { actorId: currentPlayerId, type: 'DECLINE_FLIGHT', payload: {}, dueAt };
     case 'TURN_END':
       return { actorId: currentPlayerId, type: 'END_TURN', payload: {}, dueAt };
     case 'PAYMENT':

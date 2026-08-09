@@ -9,6 +9,7 @@ const roll = z
   .object({ pathChoices: z.array(z.string().min(1).max(64)).max(12).optional() })
   .strict();
 const property = z.object({ propertyId: z.string().min(1).max(64) }).strict();
+const flightDestination = z.object({ destinationTileId: z.string().min(1).max(64) }).strict();
 const bid = z.object({ amount: z.number().int().positive().max(100_000_000) }).strict();
 const tradeId = z.object({ tradeId: z.string().uuid() }).strict();
 const assets = z
@@ -42,6 +43,20 @@ export function toEngineAction(envelope: GameActionEnvelope, actorId: string): G
         ? { type: 'ROLL_DICE', actorId, expectedRevision }
         : { type: 'ROLL_DICE', actorId, expectedRevision, pathChoices: parsed.pathChoices };
     }
+    case 'TAKE_FLIGHT':
+      return {
+        type: 'TAKE_FLIGHT',
+        actorId,
+        expectedRevision,
+        ...parse(flightDestination, envelope.payload)
+      };
+    case 'DECLINE_FLIGHT':
+      return {
+        type: 'DECLINE_FLIGHT',
+        actorId,
+        expectedRevision,
+        ...parse(empty, envelope.payload)
+      };
     case 'BUY_PROPERTY':
       return { type: 'BUY_PROPERTY', actorId, expectedRevision, ...parse(empty, envelope.payload) };
     case 'DECLINE_PROPERTY':

@@ -18,6 +18,7 @@ import { soundManager } from '../audio/sound-manager';
 import { useChatAudio, useGameAudio } from '../audio/use-game-audio';
 import { Brand } from '../components/Brand';
 import { GameBoard } from '../components/GameBoard';
+import { FlightDecision } from '../components/FlightDecision';
 import { PlayerRail } from '../components/PlayerRail';
 import { PropertyInspector } from '../components/PropertyInspector';
 import { ScreenTransition } from '../components/ScreenTransition';
@@ -37,7 +38,9 @@ export function GameScreen() {
   const sendChat = useRealtimeStore((store) => store.sendChat);
   const sendGameAction = useRealtimeStore((store) => store.sendGameAction);
   const rematch = useRealtimeStore((store) => store.rematch);
-  const [selectedTile, setSelectedTile] = useState<VisualTile>(getAtlasMap('neon-city').tiles[0]!);
+  const [selectedTile, setSelectedTile] = useState<VisualTile>(
+    getAtlasMap('world-capital-routes').tiles[0]!
+  );
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
@@ -66,7 +69,9 @@ export function GameScreen() {
     const currentPlayerId = state.turnOrder[state.currentPlayerIndex];
     if (
       currentPlayerId === identity.playerId &&
-      (state.phase === 'PROPERTY_DECISION' || state.phase === 'PAYMENT')
+      (state.phase === 'PROPERTY_DECISION' ||
+        state.phase === 'FLIGHT_DECISION' ||
+        state.phase === 'PAYMENT')
     )
       setMobilePanel('actions');
   }, [identity, state]);
@@ -107,6 +112,7 @@ export function GameScreen() {
   const actionRequired =
     isMyTurn &&
     (state.phase === 'PROPERTY_DECISION' ||
+      state.phase === 'FLIGHT_DECISION' ||
       state.phase === 'PAYMENT' ||
       state.phase === 'TURN_END');
   const eventActivity = state.activity.slice(-30);
@@ -292,6 +298,14 @@ export function GameScreen() {
 
       {state.auction ? (
         <AuctionModal
+          state={state}
+          viewerId={identity.playerId}
+          pending={pending}
+          onAction={(type, payload) => void action(type, payload ?? {})}
+        />
+      ) : null}
+      {state.pendingFlightDecision ? (
+        <FlightDecision
           state={state}
           viewerId={identity.playerId}
           pending={pending}

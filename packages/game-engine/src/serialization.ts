@@ -8,6 +8,7 @@ const PHASES: readonly GamePhase[] = [
   'TURN_START',
   'ROLLING',
   'MOVING',
+  'FLIGHT_DECISION',
   'LANDING',
   'PROPERTY_DECISION',
   'PAYMENT',
