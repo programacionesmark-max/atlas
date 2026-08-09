@@ -196,6 +196,29 @@ describe('authoritative realtime server', () => {
     });
   });
 
+  it('acknowledges a duplicate lobby request with a useful conflict', async () => {
+    const host = await connectClient(url);
+    sockets.push(host);
+    const session = await createSession(host, 'Lobby Owner');
+    expect(session.ok).toBe(true);
+
+    const created = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      host.emit('room:create', { settings: SETTINGS }, resolve);
+    });
+    expect(created.ok).toBe(true);
+
+    const duplicate = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      host.emit('room:create', { settings: SETTINGS }, resolve);
+    });
+    expect(duplicate).toMatchObject({
+      ok: false,
+      error: {
+        code: 'CONFLICT',
+        message: 'Leave the current lobby before creating another.'
+      }
+    });
+  });
+
   it('starts an eight-player room without divergent membership', async () => {
     const clients = await Promise.all(Array.from({ length: 8 }, () => connectClient(url)));
     sockets.push(...clients);

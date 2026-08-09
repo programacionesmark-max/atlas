@@ -3314,6 +3314,15 @@ select:focus-visible {
 .advanced-rules .toggle-list {
   grid-column: 1 / -1;
 }
+.drawer-error {
+  padding: 11px 13px;
+  color: #7f1d1d;
+  background: #fff1f0;
+  border: 1px solid #d89a94;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
 
 @media (max-width: 1050px) {
   .create-drawer--atlas {

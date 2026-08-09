@@ -16,7 +16,9 @@ export function RoomsScreen() {
   const listRooms = useRealtimeStore((state) => state.listRooms);
   const createRoom = useRealtimeStore((state) => state.createRoom);
   const joinRoom = useRealtimeStore((state) => state.joinRoom);
+  const leaveRoom = useRealtimeStore((state) => state.leaveRoom);
   const identity = useRealtimeStore((state) => state.identity);
+  const currentRoom = useRealtimeStore((state) => state.room);
   const [search, setSearch] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -53,6 +55,10 @@ export function RoomsScreen() {
   }
 
   async function handleCreate(settings: RoomSettings, roomPassword?: string): Promise<void> {
+    if (currentRoom?.status === 'IN_GAME' || currentRoom?.status === 'STARTING') {
+      throw new Error('Ya tienes una partida activa. Vuelve a ella antes de crear un lobby nuevo.');
+    }
+    if (currentRoom) await leaveRoom();
     const room = await createRoom(settings, roomPassword);
     void navigate(`/room/${room.code}`);
   }

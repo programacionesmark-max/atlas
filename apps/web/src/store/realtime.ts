@@ -93,41 +93,40 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
   },
 
   createRoom: async (settings, password) => {
-    const room = await new Promise<PublicRoomState>((resolve, reject) => {
-      socket.emit('room:create', { settings, ...(password ? { password } : {}) }, (ack) => {
-        if (ack.ok) resolve(ack.data);
-        else reject(new Error(ack.error.message));
-      });
+    set({ error: null });
+    const room = await requestWithAck<PublicRoomState>('crear la sala', (ack) =>
+      socket.emit('room:create', { settings, ...(password ? { password } : {}) }, ack)
+    ).catch((error: unknown) => {
+      set({ error: errorMessage(error) });
+      throw error;
     });
     set({ room, chat: [], events: [] });
     return room;
   },
 
   joinRoom: async (code, password) => {
-    const room = await new Promise<PublicRoomState>((resolve, reject) => {
+    set({ error: null });
+    const room = await requestWithAck<PublicRoomState>('unirse a la sala', (ack) => {
       socket.emit(
         'room:join',
         { code: code.toUpperCase(), asSpectator: false, ...(password ? { password } : {}) },
-        (ack) => {
-          if (ack.ok) resolve(ack.data);
-          else reject(new Error(ack.error.message));
-        }
+        ack
       );
+    }).catch((error: unknown) => {
+      set({ error: errorMessage(error) });
+      throw error;
     });
     set({ room, chat: [], events: [] });
     return room;
   },
 
   quickPlay: async () => {
-    const room = await new Promise<PublicRoomState>((resolve, reject) => {
-      socket.emit(
-        'room:quickPlay',
-        { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4 },
-        (ack) => {
-          if (ack.ok) resolve(ack.data);
-          else reject(new Error(ack.error.message));
-        }
-      );
+    set({ error: null });
+    const room = await requestWithAck<PublicRoomState>('buscar una partida rápida', (ack) => {
+      socket.emit('room:quickPlay', { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4 }, ack);
+    }).catch((error: unknown) => {
+      set({ error: errorMessage(error) });
+      throw error;
     });
     set({ room, chat: [], events: [] });
     return room;
@@ -246,6 +245,25 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
 
   clearError: () => set({ error: null })
 }));
+
+function requestWithAck<T>(
+  operation: string,
+  emit: (
+    ack: (response: { ok: true; data: T } | { ok: false; error: { message: string } }) => void
+  ) => void
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(
+      () => reject(new Error(`El servidor tardó demasiado en ${operation}.`)),
+      12_000
+    );
+    emit((response) => {
+      window.clearTimeout(timer);
+      if (response.ok) resolve(response.data);
+      else reject(new Error(response.error.message));
+    });
+  });
+}
 
 let initialized = false;
 

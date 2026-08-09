@@ -188,8 +188,14 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
     input: CreateRoomInput,
     socketId: string
   ): Promise<PublicRoomState> {
-    if (this.getManagedRoomForPlayer(session.playerId))
-      throw new RequestError('CONFLICT', 'Leave the current room before creating another');
+    const existingRoom = this.getManagedRoomForPlayer(session.playerId);
+    if (existingRoom)
+      throw new RequestError(
+        'CONFLICT',
+        existingRoom.status === 'IN_GAME' || existingRoom.status === 'STARTING'
+          ? 'You already have an active game. Return to it before creating another lobby.'
+          : 'Leave the current lobby before creating another.'
+      );
     const id = randomUUID();
     const member = this.createMember(session, true, socketId, 0);
     const room: ManagedRoom = {

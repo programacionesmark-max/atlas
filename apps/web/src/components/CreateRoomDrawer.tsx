@@ -54,6 +54,7 @@ export function CreateRoomDrawer({
   );
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(initialModeView.id === 'CUSTOM');
   const selectedMap = useMemo(
     () => ATLAS_MAPS.find((map) => map.config.id === settings.mapId) ?? ATLAS_MAPS[0]!,
@@ -71,10 +72,15 @@ export function CreateRoomDrawer({
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
     setPending(true);
+    setError(null);
     try {
       await onCreate(
         settings,
         settings.visibility === 'PRIVATE' && password ? password : undefined
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'No se pudo crear la partida. Inténtalo de nuevo.'
       );
     } finally {
       setPending(false);
@@ -278,6 +284,12 @@ export function CreateRoomDrawer({
               />
             </div>
           </section>
+        ) : null}
+
+        {error ? (
+          <div className="drawer-error" role="alert">
+            {error}
+          </div>
         ) : null}
 
         <button type="submit" className="button button--primary drawer-submit" disabled={pending}>
