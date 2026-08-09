@@ -122,7 +122,7 @@ export function createGame(input: CreateGameInput): GameState {
     lastRoll: null,
     properties,
     transactions: input.players.map((player, index) => ({
-      id: `initial-${index}-${player.id}`,
+      id: `initial-${input.gameId}-${index}-${player.id}`,
       gameId: input.gameId,
       fromPlayerId: null,
       toPlayerId: player.id,

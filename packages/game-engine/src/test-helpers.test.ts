@@ -22,6 +22,18 @@ describe('game creation and map validation', () => {
     expect(state.transactions.every((entry) => entry.type === 'STARTING_CASH')).toBe(true);
   });
 
+  it('keeps starting transaction ids unique when the same players start another game', () => {
+    const players = [
+      { id: 'a', name: 'Ada' },
+      { id: 'b', name: 'Bo' }
+    ];
+    const first = createGame({ gameId: 'game-one', map: neonCityMap, players, now: 100 });
+    const second = createGame({ gameId: 'game-two', map: neonCityMap, players, now: 200 });
+
+    const firstIds = new Set(first.transactions.map((transaction) => transaction.id));
+    expect(second.transactions.every((transaction) => !firstIds.has(transaction.id))).toBe(true);
+  });
+
   it('merges rule overrides over map-specific defaults', () => {
     expect(defaultRules(neonCityMap).salaryOnPassStart).toBe(300);
     const state = createGame({
