@@ -145,7 +145,7 @@ export function GameScreen() {
 
       <div className="game-layout">
         <div
-          className={mobilePanel === 'players' ? 'mobile-drawer is-open' : 'desktop-player-rail'}
+          className={`desktop-player-rail${mobilePanel === 'players' ? ' mobile-drawer is-open' : ''}`}
         >
           <PlayerRail state={state} room={room} />
         </div>
@@ -165,7 +165,9 @@ export function GameScreen() {
           canEndTurn={canEnd}
           pending={pending}
         />
-        <div className={mobilePanel === 'actions' ? 'mobile-drawer is-open' : 'desktop-inspector'}>
+        <div
+          className={`desktop-inspector${mobilePanel === 'actions' ? ' mobile-drawer is-open' : ''}`}
+        >
           <PropertyInspector
             state={state}
             tile={selectedTile}
