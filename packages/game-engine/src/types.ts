@@ -9,6 +9,7 @@ export type GamePhase =
   | 'PROPERTY_DECISION'
   | 'PAYMENT'
   | 'CARD_EVENT'
+  | 'ROUND_EVENT'
   | 'TRADE'
   | 'AUCTION'
   | 'JAIL'
@@ -237,6 +238,22 @@ export interface MovementTrace {
   readonly mode: 'GROUND' | 'FLIGHT';
 }
 
+export type RoundEventOutcome =
+  'CASH_PRIZE' | 'CASH_LOSS' | 'FREE_CITY' | 'FREE_UPGRADE' | 'CITY_LOSS' | 'UPGRADE_LOSS';
+
+export interface PendingRoundEvent {
+  readonly id: string;
+  readonly playerId: string;
+  readonly round: number;
+}
+
+export interface RoundEventResult extends PendingRoundEvent {
+  readonly outcome: RoundEventOutcome;
+  readonly message: string;
+  readonly amount?: number;
+  readonly propertyId?: string;
+}
+
 export interface GameState {
   readonly schemaVersion: 1;
   readonly gameId: string;
@@ -258,6 +275,8 @@ export interface GameState {
   readonly pendingPropertyDecision: PendingPropertyDecision | null;
   readonly pendingFlightDecision: PendingFlightDecision | null;
   readonly lastMovement: MovementTrace | null;
+  readonly pendingRoundEvent: PendingRoundEvent | null;
+  readonly lastRoundEvent: RoundEventResult | null;
   readonly paymentDue: PaymentDue | null;
   readonly auction: AuctionState | null;
   readonly trades: Readonly<Record<string, TradeOffer>>;
@@ -301,6 +320,12 @@ export type GameAction =
   | {
       readonly type: 'DECLINE_FLIGHT';
       readonly actorId: string;
+      readonly expectedRevision?: number;
+    }
+  | {
+      readonly type: 'REVEAL_ROUND_EVENT';
+      readonly actorId: string;
+      readonly cardIndex: number;
       readonly expectedRevision?: number;
     }
   | { readonly type: 'BUY_PROPERTY'; readonly actorId: string; readonly expectedRevision?: number }

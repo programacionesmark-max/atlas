@@ -1,5 +1,6 @@
 import type { GameState, PropertyConfig } from '@circuit/game-engine';
-import { ArrowLeftRight, Check, X } from 'lucide-react';
+import { ArrowLeftRight, Building2, Check, WalletCards, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { getAtlasMap } from '../data/atlas';
@@ -65,26 +66,41 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
     const isRecipient = openTrade.recipientId === viewerId;
     const other = state.players[isRecipient ? openTrade.proposerId : openTrade.recipientId];
     return (
-      <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="trade-title">
-        <section className="trade-modal trade-modal--incoming">
+      <motion.div
+        className="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trade-title"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <motion.section
+          className="trade-modal trade-modal--incoming"
+          initial={{ opacity: 0, y: 26, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+        >
           <div className="modal-title">
-            <h2 id="trade-title">
-              <ArrowLeftRight /> Trade with {other?.name}
-            </h2>
-            <button type="button" onClick={onClose}>
+            <div>
+              <span className="modal-kicker">Mesa de negociación</span>
+              <h2 id="trade-title">
+                <ArrowLeftRight /> Trato con {other?.name}
+              </h2>
+              <p>Compara ambos lados antes de tomar una decisión.</p>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Cerrar negociación">
               <X />
             </button>
           </div>
           <div className="trade-comparison">
             <TradeBundle
-              title={isRecipient ? 'They offer' : 'You offer'}
+              title={isRecipient ? 'Te ofrecen' : 'Tú entregas'}
               cash={openTrade.offered.cash}
               propertyIds={openTrade.offered.propertyIds}
               propertyConfigs={propertyConfigs}
             />
             <ArrowLeftRight className="trade-exchange" />
             <TradeBundle
-              title={isRecipient ? 'They request' : 'You request'}
+              title={isRecipient ? 'Te piden' : 'Tú recibes'}
               cash={openTrade.requested.cash}
               propertyIds={openTrade.requested.propertyIds}
               propertyConfigs={propertyConfigs}
@@ -99,7 +115,7 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
                   type="button"
                   onClick={() => onAction('DECLINE_TRADE', { tradeId: openTrade.id })}
                 >
-                  <X /> Decline
+                  <X /> Rechazar
                 </button>
                 <button
                   className="button button--outline"
@@ -114,7 +130,7 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
                     setCountering(true);
                   }}
                 >
-                  Counter
+                  Contraoferta
                 </button>
                 <button
                   className="button button--ready"
@@ -122,7 +138,7 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
                   type="button"
                   onClick={() => onAction('ACCEPT_TRADE', { tradeId: openTrade.id })}
                 >
-                  <Check /> Accept
+                  <Check /> Aceptar trato
                 </button>
               </>
             ) : (
@@ -132,28 +148,44 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
                 type="button"
                 onClick={() => onAction('CANCEL_TRADE', { tradeId: openTrade.id })}
               >
-                Cancel offer
+                Cancelar oferta
               </button>
             )}
           </div>
-        </section>
-      </div>
+        </motion.section>
+      </motion.div>
     );
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="trade-title">
-      <form className="trade-modal" onSubmit={submit}>
+    <motion.div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="trade-title"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <motion.form
+        className="trade-modal"
+        onSubmit={submit}
+        initial={{ opacity: 0, y: 26, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+      >
         <div className="modal-title">
-          <h2 id="trade-title">
-            <ArrowLeftRight /> {countering ? 'Counter offer' : 'Create trade'}
-          </h2>
-          <button type="button" onClick={onClose}>
+          <div>
+            <span className="modal-kicker">Mercado entre jugadores</span>
+            <h2 id="trade-title">
+              <ArrowLeftRight /> {countering ? 'Preparar contraoferta' : 'Crear un trato'}
+            </h2>
+            <p>Combina dinero y ciudades. El servidor valida cada activo al aceptar.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar negociación">
             <X />
           </button>
         </div>
         <label className="trade-recipient">
-          Trade with
+          Negociar con
           <select
             value={recipientId}
             disabled={countering}
@@ -173,8 +205,9 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
         </label>
         <div className="trade-comparison">
           <TradePicker
-            title="You offer"
+            title="Tú entregas"
             cash={offeredCash}
+            maxCash={state.players[viewerId]?.cash ?? 0}
             onCash={setOfferedCash}
             properties={mine.map((item) => item.propertyId)}
             selected={offeredProperties}
@@ -183,8 +216,9 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
           />
           <ArrowLeftRight className="trade-exchange" />
           <TradePicker
-            title="You request"
+            title="Tú recibes"
             cash={requestedCash}
+            maxCash={state.players[recipientId]?.cash ?? 0}
             onCash={setRequestedCash}
             properties={theirs.map((item) => item.propertyId)}
             selected={requestedProperties}
@@ -194,24 +228,25 @@ export function TradeModal({ state, viewerId, pending, onClose, onAction }: Trad
         </div>
         <div className="trade-actions">
           <button className="button button--ghost" type="button" onClick={onClose}>
-            Cancel
+            Cancelar
           </button>
           <button
             className="button button--primary"
             disabled={pending || !recipientId}
             type="submit"
           >
-            {countering ? 'Send counter' : 'Send offer'}
+            {countering ? 'Enviar contraoferta' : 'Enviar oferta'}
           </button>
         </div>
-      </form>
-    </div>
+      </motion.form>
+    </motion.div>
   );
 }
 
 function TradePicker({
   title,
   cash,
+  maxCash,
   onCash,
   properties,
   selected,
@@ -220,6 +255,7 @@ function TradePicker({
 }: {
   title: string;
   cash: number;
+  maxCash: number;
   onCash: (value: number) => void;
   properties: string[];
   selected: string[];
@@ -228,18 +264,26 @@ function TradePicker({
 }) {
   return (
     <section className="trade-side">
-      <h3>{title}</h3>
+      <div className="trade-side__title">
+        <h3>{title}</h3>
+        <strong>${tradeValue(cash, selected, propertyConfigs).toLocaleString()}</strong>
+      </div>
       <label>
-        Cash
+        <span>
+          <WalletCards /> Dinero
+        </span>
         <input
           type="number"
           min={0}
+          max={maxCash}
           step={50}
           value={cash}
           onChange={(event) => onCash(Number(event.target.value))}
         />
       </label>
-      <span className="section-label">Properties</span>
+      <span className="section-label">
+        <Building2 /> Ciudades
+      </span>
       <div className="trade-property-list">
         {properties.length ? (
           properties.map((id) => (
@@ -256,7 +300,7 @@ function TradePicker({
             </label>
           ))
         ) : (
-          <p>No properties available.</p>
+          <p className="trade-empty">No hay ciudades disponibles.</p>
         )}
       </div>
     </section>
@@ -276,13 +320,29 @@ function TradeBundle({
 }) {
   return (
     <section className="trade-side">
-      <h3>{title}</h3>
-      <strong className="trade-cash">${cash.toLocaleString()}</strong>
+      <div className="trade-side__title">
+        <h3>{title}</h3>
+        <strong>${tradeValue(cash, propertyIds, propertyConfigs).toLocaleString()}</strong>
+      </div>
+      <strong className="trade-cash">
+        <WalletCards /> ${cash.toLocaleString()}
+      </strong>
       {propertyIds.map((id) => (
         <div className="trade-bundle-row" key={id}>
           {propertyConfigs.get(id)?.name ?? id}
         </div>
       ))}
     </section>
+  );
+}
+
+function tradeValue(
+  cash: number,
+  propertyIds: readonly string[],
+  propertyConfigs: ReadonlyMap<string, PropertyConfig>
+): number {
+  return propertyIds.reduce(
+    (total, propertyId) => total + (propertyConfigs.get(propertyId)?.purchasePrice ?? 0),
+    cash
   );
 }

@@ -23,10 +23,22 @@ import type {
   PaymentDue,
   PlayerState,
   PropertyState,
+  RoundEventOutcome,
+  RoundEventResult,
   TradeAssetBundle,
   TradeOffer,
   TransactionType
 } from './types.js';
+
+const ROUND_EVENT_INTERVAL = 4;
+const ROUND_EVENT_OUTCOMES: readonly RoundEventOutcome[] = [
+  'CASH_PRIZE',
+  'CASH_LOSS',
+  'FREE_CITY',
+  'FREE_UPGRADE',
+  'CITY_LOSS',
+  'UPGRADE_LOSS'
+];
 
 export function defaultRules(map: MapConfig): GameRules {
   return {
@@ -134,6 +146,8 @@ export function createGame(input: CreateGameInput): GameState {
     pendingPropertyDecision: null,
     pendingFlightDecision: null,
     lastMovement: null,
+    pendingRoundEvent: null,
+    lastRoundEvent: null,
     paymentDue: null,
     auction: null,
     trades: {},
@@ -703,9 +717,169 @@ function advanceTurn(state: GameState, map: MapConfig, context: EngineContext): 
     turnStartedAt: context.now,
     lastRoll: null,
     pendingPropertyDecision: null,
+    pendingRoundEvent: null,
     paymentDue: null
   };
-  return checkVictory(result, map);
+  result = checkVictory(result, map);
+  if (
+    result.phase !== 'GAME_OVER' &&
+    startedNewRound &&
+    result.rules.eventDeckEnabled &&
+    result.round % ROUND_EVENT_INTERVAL === 0
+  ) {
+    const eligible = result.turnOrder.filter((id) => result.players[id]?.status === 'ACTIVE');
+    const playerId = eligible[context.random.nextInt(0, eligible.length - 1)];
+    if (playerId) {
+      result = activity(
+        {
+          ...result,
+          phase: 'ROUND_EVENT',
+          pendingRoundEvent: {
+            id: context.idFactory(),
+            playerId,
+            round: result.round
+          }
+        },
+        context,
+        'ROUND_EVENT_READY',
+        `Ronda ${result.round}: ${result.players[playerId]?.name ?? playerId} abre la Cámara del Atlas`,
+        playerId
+      );
+    }
+  }
+  return result;
+}
+
+function resolveRoundEvent(state: GameState, map: MapConfig, context: EngineContext): GameState {
+  const pending = state.pendingRoundEvent;
+  invariant(pending, 'INVALID_ACTION', 'There is no round event to reveal');
+  const player = state.players[pending.playerId];
+  invariant(player?.status === 'ACTIVE', 'INVALID_ACTION', 'Selected player is not active');
+  const outcome = ROUND_EVENT_OUTCOMES[
+    context.random.nextInt(0, ROUND_EVENT_OUTCOMES.length - 1)
+  ] as RoundEventOutcome;
+  let result = state;
+  let eventResult: RoundEventResult;
+
+  const owned = Object.values(result.properties).filter(
+    (property) => property.ownerId === pending.playerId
+  );
+  const unowned = Object.values(result.properties).filter((property) => property.ownerId === null);
+  const upgradeable = owned.filter(
+    (property) => !property.mortgaged && property.upgradeLevel < state.rules.maxUpgradeLevel
+  );
+  const developed = owned.filter((property) => property.upgradeLevel > 0);
+
+  if (outcome === 'CASH_PRIZE' || (outcome === 'FREE_CITY' && unowned.length === 0)) {
+    const amount = 450;
+    result = postTransaction(
+      result,
+      { fromPlayerId: null, toPlayerId: pending.playerId, amount, type: 'EVENT' },
+      context
+    );
+    eventResult = {
+      ...pending,
+      outcome: 'CASH_PRIZE',
+      amount,
+      message: `${player.name} gana $${amount} del Fondo Mundial`
+    };
+  } else if (
+    outcome === 'CASH_LOSS' ||
+    (outcome === 'CITY_LOSS' && owned.length === 0) ||
+    (outcome === 'UPGRADE_LOSS' && developed.length === 0)
+  ) {
+    const amount = Math.min(300, player.cash);
+    if (amount > 0)
+      result = postTransaction(
+        result,
+        { fromPlayerId: pending.playerId, toPlayerId: null, amount, type: 'EVENT' },
+        context
+      );
+    eventResult = {
+      ...pending,
+      outcome: 'CASH_LOSS',
+      amount,
+      message: `${player.name} pierde $${amount} por una crisis inesperada`
+    };
+  } else if (outcome === 'FREE_CITY') {
+    const property = unowned[context.random.nextInt(0, unowned.length - 1)] as PropertyState;
+    result = setProperty(result, { ...property, ownerId: pending.playerId });
+    result = updatePlayer(result, pending.playerId, (current) => ({
+      ...current,
+      stats: { ...current.stats, propertiesPurchased: current.stats.propertiesPurchased + 1 }
+    }));
+    const name = getPropertyConfig(map, property.propertyId).name;
+    eventResult = {
+      ...pending,
+      outcome,
+      propertyId: property.propertyId,
+      message: `${player.name} recibe ${name} gratis`
+    };
+  } else if (outcome === 'FREE_UPGRADE' && upgradeable.length > 0) {
+    const property = upgradeable[
+      context.random.nextInt(0, upgradeable.length - 1)
+    ] as PropertyState;
+    result = setProperty(result, { ...property, upgradeLevel: property.upgradeLevel + 1 });
+    const name = getPropertyConfig(map, property.propertyId).name;
+    eventResult = {
+      ...pending,
+      outcome,
+      propertyId: property.propertyId,
+      message: `${name} recibe una mejora gratuita para ${player.name}`
+    };
+  } else if (outcome === 'CITY_LOSS' && owned.length > 0) {
+    const property = owned[context.random.nextInt(0, owned.length - 1)] as PropertyState;
+    result = setProperty(result, {
+      ...property,
+      ownerId: null,
+      mortgaged: false,
+      upgradeLevel: 0
+    });
+    const name = getPropertyConfig(map, property.propertyId).name;
+    eventResult = {
+      ...pending,
+      outcome,
+      propertyId: property.propertyId,
+      message: `${player.name} pierde el control de ${name}`
+    };
+  } else if (outcome === 'UPGRADE_LOSS' && developed.length > 0) {
+    const property = developed[context.random.nextInt(0, developed.length - 1)] as PropertyState;
+    result = setProperty(result, { ...property, upgradeLevel: property.upgradeLevel - 1 });
+    const name = getPropertyConfig(map, property.propertyId).name;
+    eventResult = {
+      ...pending,
+      outcome,
+      propertyId: property.propertyId,
+      message: `${name} pierde un nivel de desarrollo`
+    };
+  } else {
+    const amount = 250;
+    result = postTransaction(
+      result,
+      { fromPlayerId: null, toPlayerId: pending.playerId, amount, type: 'EVENT' },
+      context
+    );
+    eventResult = {
+      ...pending,
+      outcome: 'CASH_PRIZE',
+      amount,
+      message: `${player.name} recibe un premio de consolación de $${amount}`
+    };
+  }
+
+  return activity(
+    {
+      ...result,
+      phase: 'TURN_START',
+      pendingRoundEvent: null,
+      lastRoundEvent: eventResult,
+      turnStartedAt: context.now
+    },
+    context,
+    `ROUND_EVENT_${eventResult.outcome}`,
+    eventResult.message,
+    pending.playerId
+  );
 }
 
 function validateBundle(state: GameState, ownerId: string, bundle: TradeAssetBundle): void {
@@ -1000,6 +1174,22 @@ function handleAction(
       );
       if (movement.stoppedForFlight) return movement.state;
       return resolveLanding(movement.state, map, action.actorId, context);
+    }
+    case 'REVEAL_ROUND_EVENT': {
+      assertPhase(state, ['ROUND_EVENT']);
+      invariant(
+        Number.isInteger(action.cardIndex) && action.cardIndex >= 0 && action.cardIndex <= 2,
+        'VALIDATION_FAILED',
+        'Round event card is invalid'
+      );
+      const pending = state.pendingRoundEvent;
+      const currentId = currentPlayerId(state);
+      invariant(
+        pending && (action.actorId === pending.playerId || action.actorId === currentId),
+        'NOT_YOUR_TURN',
+        'Only the selected player or current player can reveal this event'
+      );
+      return resolveRoundEvent(state, map, context);
     }
     case 'BUY_PROPERTY': {
       assertPhase(state, ['PROPERTY_DECISION']);

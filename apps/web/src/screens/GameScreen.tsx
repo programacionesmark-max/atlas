@@ -5,15 +5,18 @@ import {
   Banknote,
   Clock3,
   Flag,
+  Handshake,
   Menu,
   MessageCircle,
+  ShieldAlert,
   Send,
   UsersRound
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { AuctionModal } from '../components/AuctionModal';
+import { BankruptcyConfirm } from '../components/BankruptcyConfirm';
 import { soundManager } from '../audio/sound-manager';
 import { useChatAudio, useGameAudio } from '../audio/use-game-audio';
 import { Brand } from '../components/Brand';
@@ -21,6 +24,7 @@ import { GameBoard } from '../components/GameBoard';
 import { FlightDecision } from '../components/FlightDecision';
 import { PlayerRail } from '../components/PlayerRail';
 import { PropertyInspector } from '../components/PropertyInspector';
+import { RoundEventModal } from '../components/RoundEventModal';
 import { ScreenTransition } from '../components/ScreenTransition';
 import { TradeModal } from '../components/TradeModal';
 import { VictoryOverlay } from '../components/VictoryOverlay';
@@ -44,8 +48,11 @@ export function GameScreen() {
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
+  const [showBankruptcy, setShowBankruptcy] = useState(false);
+  const [dismissedRoundEventId, setDismissedRoundEventId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<'board' | 'players' | 'chat' | 'actions'>('board');
   const [message, setMessage] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const state = useMemo(() => parseGameState(wrapped?.state), [wrapped?.state]);
   useGameAudio(state, identity?.playerId ?? null);
@@ -76,6 +83,14 @@ export function GameScreen() {
       setMobilePanel('actions');
   }, [identity, state]);
 
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [chat.length]);
+
+  const dismissRoundEvent = useCallback((eventId: string) => {
+    setDismissedRoundEventId(eventId);
+  }, []);
+
   async function action(type: string, payload?: JsonValue): Promise<void> {
     setPending(true);
     setActionError(null);
@@ -91,8 +106,20 @@ export function GameScreen() {
   async function submitMessage(event: FormEvent): Promise<void> {
     event.preventDefault();
     if (!message.trim()) return;
-    await sendChat(message.trim());
-    setMessage('');
+    try {
+      await sendChat(message.trim());
+      setMessage('');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'No se pudo enviar el mensaje.');
+    }
+  }
+
+  async function sendQuickMessage(text: string): Promise<void> {
+    try {
+      await sendChat(text);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'No se pudo enviar el mensaje.');
+    }
   }
 
   if (!room || !identity || !state || !wrapped || wrapped.gameId !== gameId) {
@@ -114,11 +141,15 @@ export function GameScreen() {
     (state.phase === 'PROPERTY_DECISION' ||
       state.phase === 'FLIGHT_DECISION' ||
       state.phase === 'PAYMENT' ||
+      state.phase === 'ROUND_EVENT' ||
       state.phase === 'TURN_END');
   const eventActivity = state.activity.slice(-30);
   const openTrade = Object.values(state.trades).some(
     (trade) => trade.status === 'OPEN' && trade.recipientId === identity.playerId
   );
+  const visibleRoundEvent =
+    state.pendingRoundEvent ??
+    (state.lastRoundEvent?.id !== dismissedRoundEventId ? state.lastRoundEvent : null);
 
   return (
     <ScreenTransition className="game-screen">
@@ -182,14 +213,31 @@ export function GameScreen() {
             onAction={(type, payload) => void action(type, payload ?? {})}
             onTrade={() => setShowTrade(true)}
           />
-          <div className="turn-actions">
+          <div className="turn-actions game-action-dock">
+            <span className="game-action-dock__label">Centro de acciones</span>
             <button
-              className={openTrade ? 'button button--outline has-notice' : 'button button--outline'}
+              className={openTrade ? 'button action-tile has-notice' : 'button action-tile'}
               type="button"
               onClick={() => setShowTrade(true)}
               disabled={!room.settings.rules.tradesEnabled}
             >
-              <ArrowLeftRight /> Trade
+              <span>
+                <ArrowLeftRight />
+              </span>
+              <strong>Trade</strong>
+              <small>{openTrade ? 'Oferta esperando' : 'Negocia ciudades'}</small>
+            </button>
+            <button
+              className="button action-tile action-tile--danger"
+              type="button"
+              onClick={() => setShowBankruptcy(true)}
+              disabled={state.players[identity.playerId]?.status !== 'ACTIVE'}
+            >
+              <span>
+                <ShieldAlert />
+              </span>
+              <strong>Bancarrota</strong>
+              <small>Abandonar partida</small>
             </button>
             {state.paymentDue?.debtorId === identity.playerId ? (
               <>
@@ -207,7 +255,7 @@ export function GameScreen() {
                   disabled={pending}
                   onClick={() => void action('DECLARE_BANKRUPTCY', {})}
                 >
-                  <Flag /> Bankruptcy
+                  <Flag /> Bancarrota por deuda
                 </button>
               </>
             ) : null}
@@ -237,21 +285,50 @@ export function GameScreen() {
         <section
           className={mobilePanel === 'chat' ? 'game-chat mobile-drawer is-open' : 'game-chat'}
         >
-          <span className="section-label">Chat</span>
-          <div>
-            {chat.slice(-5).map((entry) => (
-              <p key={entry.id}>
-                <strong>{entry.nickname}:</strong> {entry.text}
-              </p>
+          <header className="game-chat__header">
+            <span>
+              <MessageCircle />
+            </span>
+            <div>
+              <strong>Chat de mesa</strong>
+              <small>{room.playerCount} jugadores conectados</small>
+            </div>
+          </header>
+          <div className="game-chat__messages" aria-live="polite">
+            {chat.length === 0 ? (
+              <p className="game-chat__empty">La mesa está en silencio. Rompe el hielo.</p>
+            ) : null}
+            {chat.slice(-12).map((entry) => (
+              <article
+                className={
+                  entry.playerId === identity.playerId ? 'chat-bubble is-self' : 'chat-bubble'
+                }
+                key={entry.id}
+              >
+                <span>{entry.nickname.slice(0, 1).toUpperCase()}</span>
+                <p>
+                  <strong>{entry.nickname}</strong>
+                  {entry.text}
+                </p>
+              </article>
             ))}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="game-chat__quick" aria-label="Mensajes rápidos">
+            <button type="button" onClick={() => void sendQuickMessage('¡Buena jugada!')}>
+              ✨ Buena jugada
+            </button>
+            <button type="button" onClick={() => void sendQuickMessage('¿Hacemos un trato?')}>
+              <Handshake /> ¿Trato?
+            </button>
           </div>
           <form onSubmit={(event) => void submitMessage(event)}>
             <input
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               maxLength={280}
-              placeholder="Message players…"
-              aria-label="Message players"
+              placeholder="Escribe a la mesa…"
+              aria-label="Mensaje para los jugadores"
             />
             <button type="submit" disabled={!message.trim()} aria-label="Send">
               <Send />
@@ -319,6 +396,33 @@ export function GameScreen() {
           pending={pending}
           onClose={() => setShowTrade(false)}
           onAction={(type, payload) => void action(type, payload as JsonValue)}
+        />
+      ) : null}
+      {showBankruptcy ? (
+        <BankruptcyConfirm
+          pending={pending}
+          onClose={() => setShowBankruptcy(false)}
+          onConfirm={() => {
+            void action('FORFEIT_GAME', {}).then(() => setShowBankruptcy(false));
+          }}
+        />
+      ) : null}
+      {visibleRoundEvent ? (
+        <RoundEventModal
+          pendingEvent={state.pendingRoundEvent}
+          result={state.pendingRoundEvent ? null : state.lastRoundEvent}
+          playerName={
+            state.players[state.pendingRoundEvent?.playerId ?? state.lastRoundEvent?.playerId ?? '']
+              ?.name ?? 'un jugador'
+          }
+          canReveal={
+            Boolean(state.pendingRoundEvent) &&
+            (state.pendingRoundEvent?.playerId === identity.playerId ||
+              currentId === identity.playerId)
+          }
+          pending={pending}
+          onReveal={(cardIndex) => void action('REVEAL_ROUND_EVENT', { cardIndex })}
+          onDismiss={() => dismissRoundEvent(visibleRoundEvent.id)}
         />
       ) : null}
       {state.phase === 'GAME_OVER' ? (

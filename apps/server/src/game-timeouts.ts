@@ -32,6 +32,13 @@ export function nextTimedGameAction(state: GameState): TimedGameAction | null {
       return { actorId: currentPlayerId, type: 'DECLINE_PROPERTY', payload: {}, dueAt };
     case 'FLIGHT_DECISION':
       return { actorId: currentPlayerId, type: 'DECLINE_FLIGHT', payload: {}, dueAt };
+    case 'ROUND_EVENT':
+      return {
+        actorId: state.pendingRoundEvent?.playerId ?? currentPlayerId,
+        type: 'REVEAL_ROUND_EVENT',
+        payload: { cardIndex: 0 },
+        dueAt
+      };
     case 'TURN_END':
       return { actorId: currentPlayerId, type: 'END_TURN', payload: {}, dueAt };
     case 'PAYMENT':

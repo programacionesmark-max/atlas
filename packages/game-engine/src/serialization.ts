@@ -13,6 +13,7 @@ const PHASES: readonly GamePhase[] = [
   'PROPERTY_DECISION',
   'PAYMENT',
   'CARD_EVENT',
+  'ROUND_EVENT',
   'TRADE',
   'AUCTION',
   'JAIL',

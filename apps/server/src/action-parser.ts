@@ -10,6 +10,7 @@ const roll = z
   .strict();
 const property = z.object({ propertyId: z.string().min(1).max(64) }).strict();
 const flightDestination = z.object({ destinationTileId: z.string().min(1).max(64) }).strict();
+const roundEventCard = z.object({ cardIndex: z.number().int().min(0).max(2) }).strict();
 const bid = z.object({ amount: z.number().int().positive().max(100_000_000) }).strict();
 const tradeId = z.object({ tradeId: z.string().uuid() }).strict();
 const assets = z
@@ -56,6 +57,13 @@ export function toEngineAction(envelope: GameActionEnvelope, actorId: string): G
         actorId,
         expectedRevision,
         ...parse(empty, envelope.payload)
+      };
+    case 'REVEAL_ROUND_EVENT':
+      return {
+        type: 'REVEAL_ROUND_EVENT',
+        actorId,
+        expectedRevision,
+        ...parse(roundEventCard, envelope.payload)
       };
     case 'BUY_PROPERTY':
       return { type: 'BUY_PROPERTY', actorId, expectedRevision, ...parse(empty, envelope.payload) };
