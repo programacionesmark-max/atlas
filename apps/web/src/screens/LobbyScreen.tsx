@@ -6,6 +6,7 @@ import {
   LogOut,
   Play,
   Radio,
+  Settings2,
   UserPlus,
   UserMinus,
   UsersRound
@@ -35,6 +36,7 @@ export function LobbyScreen() {
   const transferHost = useRealtimeStore((state) => state.transferHost);
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState<'code' | 'invite' | null>(null);
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     if (!identity && !loadStoredSession()) {
@@ -59,7 +61,7 @@ export function LobbyScreen() {
     return (
       <div className="centered-status">
         <Radio className="spin-slow" />
-        <p>Joining room {code}…</p>
+        <p>Entrando en la sala {code}…</p>
       </div>
     );
   const selectedMap = getAtlasMap(room.mapId);
@@ -98,37 +100,54 @@ export function LobbyScreen() {
   }
 
   return (
-    <ScreenTransition className="lobby-screen">
-      <header className="game-header">
+    <ScreenTransition className="lobby-screen final-lobby">
+      <header className="game-header lobby-header">
         <Brand compact />
         <button className="back-link" type="button" onClick={() => void handleLeave()}>
-          <ArrowLeft /> Back to rooms
+          <ArrowLeft /> Salas
         </button>
         <div className="game-header__spacer" />
+        <div className="lobby-room-code">
+          <small>Sala {room.visibility === 'PRIVATE' ? 'privada' : 'pública'}</small>
+          <strong>{room.code}</strong>
+        </div>
         <span className="connection-live">
-          <span /> Live room
+          <span /> En directo
         </span>
       </header>
+      <div className="lobby-progress" aria-label="Progreso para empezar">
+        <span className="is-complete">
+          <b>1</b> Crear sala
+        </span>
+        <i />
+        <span className="is-active">
+          <b>2</b> Invitar
+        </span>
+        <i />
+        <span>
+          <b>3</b> Jugar
+        </span>
+      </div>
       <div className="lobby-grid">
         <section className="lobby-roster">
           <div className="lobby-title">
             <div>
-              <h1>{room.name}</h1>
+              <span className="section-label">{room.name}</span>
+              <h1>
+                Jugadores {room.playerCount}/{room.maxPlayers}
+              </h1>
               <p>
                 <button type="button" onClick={() => void copyRoom('code')}>
-                  {copied === 'code' ? 'Code copied' : room.code} <Copy />
+                  {copied === 'code' ? 'Código copiado' : `Código ${room.code}`} <Copy />
                 </button>
                 <button type="button" onClick={() => void copyRoom('invite')}>
-                  {copied === 'invite' ? 'Invitation copied' : 'Copy invitation'} <Copy />
+                  {copied === 'invite' ? 'Invitación copiada' : 'Copiar invitación'} <Copy />
                 </button>
-                <span>{room.visibility.toLowerCase()}</span>
-                <span>{title(room.mode)}</span>
-                <span>{mapName(room.mapId)}</span>
               </p>
             </div>
             <div>
               <UsersRound /> {room.playerCount}/{room.maxPlayers}
-              <span>Waiting for players</span>
+              <span>{canStart ? 'Todo listo' : 'Esperando jugadores'}</span>
             </div>
           </div>
           <div className="player-slots">
@@ -148,17 +167,17 @@ export function LobbyScreen() {
                     <span>
                       {player.isHost ? (
                         <>
-                          <Crown /> Host
+                          <Crown /> Anfitrión
                         </>
                       ) : null}
-                      {player.ready ? <em className="ready">Ready</em> : <em>Not ready</em>}
-                      {!player.connected ? <em className="disconnected">Disconnected</em> : null}
+                      {player.ready ? <em className="ready">Listo</em> : <em>Preparándose</em>}
+                      {!player.connected ? <em className="disconnected">Desconectado</em> : null}
                     </span>
                   </div>
                   <span
                     className="token-piece"
                     style={{ color: player.color }}
-                    aria-label={`${player.tokenId} token`}
+                    aria-label={`Ficha ${player.tokenId}`}
                   />
                   <div className="customization-summary">
                     <span className="color-dot" style={{ backgroundColor: player.color }} />
@@ -167,68 +186,97 @@ export function LobbyScreen() {
                   {isHost && player.id !== identity?.playerId ? (
                     <div className="lobby-player__host-actions">
                       <button type="button" onClick={() => void transferHost(player.id)}>
-                        <Crown /> Make host
+                        <Crown /> Dar anfitrión
                       </button>
                       <button type="button" onClick={() => void kickPlayer(player.id)}>
-                        <UserMinus /> Remove
+                        <UserMinus /> Expulsar
                       </button>
                     </div>
                   ) : null}
                 </div>
               ))}
             {Array.from({ length: Math.max(0, room.maxPlayers - room.playerCount) }, (_, index) => (
-              <div className="lobby-player lobby-player--empty" key={`empty-${index}`}>
+              <button
+                className="lobby-player lobby-player--empty"
+                type="button"
+                onClick={() => void copyRoom('invite')}
+                key={`empty-${index}`}
+              >
                 <UserPlus />
                 <span>
-                  <strong>Invite player</strong>
-                  <small>Share code {room.code}</small>
+                  <strong>Invitar jugador</strong>
+                  <small>Copiar enlace de la sala</small>
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </section>
         <aside className="lobby-settings">
-          <span className="section-label">Map preview</span>
+          <span className="section-label">Partida</span>
           <div className="map-preview">
-            <img src={selectedMap.image} alt={`${selectedMap.config.name} map preview`} />
+            <img src={selectedMap.image} alt={`Vista previa de ${selectedMap.config.name}`} />
             <strong>{selectedMap.config.name}</strong>
           </div>
-          <dl className="rules-list">
+          <dl className="rules-list rules-list--essential">
             <div>
-              <dt>Mode</dt>
+              <dt>Modo</dt>
               <dd>{title(room.mode)}</dd>
             </div>
             <div>
-              <dt>Starting cash</dt>
-              <dd>${room.settings.rules.startingCash.toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt>Turn timer</dt>
+              <dt>Duración</dt>
               <dd>
-                {room.settings.rules.turnTimerSeconds || 'Unlimited'}
-                {room.settings.rules.turnTimerSeconds ? ' sec' : ''}
+                {room.settings.rules.maxRounds
+                  ? `${room.settings.rules.maxRounds} rondas`
+                  : 'Sin límite'}
               </dd>
             </div>
             <div>
-              <dt>Auctions</dt>
-              <dd>{room.settings.rules.auctionsEnabled ? 'On' : 'Off'}</dd>
+              <dt>Dinero inicial</dt>
+              <dd>${room.settings.rules.startingCash.toLocaleString()}</dd>
             </div>
             <div>
-              <dt>Trades</dt>
-              <dd>{room.settings.rules.tradesEnabled ? 'On' : 'Off'}</dd>
-            </div>
-            <div>
-              <dt>Events</dt>
-              <dd>{room.settings.rules.economicEventsEnabled ? 'On' : 'Off'}</dd>
+              <dt>Turno</dt>
+              <dd>
+                {room.settings.rules.turnTimerSeconds
+                  ? `${room.settings.rules.turnTimerSeconds} s`
+                  : 'Sin límite'}
+              </dd>
             </div>
           </dl>
+          <button
+            className="lobby-rules-toggle"
+            type="button"
+            onClick={() => setShowRules((value) => !value)}
+          >
+            <Settings2 /> {showRules ? 'Ocultar reglas' : 'Ver reglas'}
+          </button>
+          {showRules ? (
+            <dl className="rules-list rules-list--advanced">
+              <div>
+                <dt>Subastas</dt>
+                <dd>{room.settings.rules.auctionsEnabled ? 'Sí' : 'No'}</dd>
+              </div>
+              <div>
+                <dt>Intercambios</dt>
+                <dd>{room.settings.rules.tradesEnabled ? 'Sí' : 'No'}</dd>
+              </div>
+              <div>
+                <dt>Cartas Atlas</dt>
+                <dd>{room.settings.rules.economicEventsEnabled ? 'Sí' : 'No'}</dd>
+              </div>
+              <div>
+                <dt>Dobles</dt>
+                <dd>{room.settings.rules.doublesExtraRoll ? 'Turno extra' : 'Normal'}</dd>
+              </div>
+            </dl>
+          ) : null}
           <p className="host-note">
             {isHost ? (
               <>
-                <Crown /> You are the host.
+                <Crown /> Tú controlas el inicio.
               </>
             ) : (
-              <>The host controls the rules.</>
+              <>El anfitrión controla las reglas.</>
             )}
           </p>
         </aside>
@@ -239,7 +287,7 @@ export function LobbyScreen() {
             type="button"
             onClick={() => void handleLeave()}
           >
-            <LogOut /> Leave room
+            <LogOut /> Salir
           </button>
           <button
             className={currentPlayer?.ready ? 'button button--ready' : 'button button--secondary'}
@@ -248,7 +296,7 @@ export function LobbyScreen() {
             onClick={() => void handleReady()}
           >
             <Check />
-            {currentPlayer?.ready ? 'Ready' : 'I’m ready'}
+            {currentPlayer?.ready ? 'Listo' : 'Estoy listo'}
           </button>
           {isHost ? (
             <button
@@ -257,11 +305,11 @@ export function LobbyScreen() {
               disabled={!canStart || pending}
               onClick={() => void handleStart()}
             >
-              <Play /> Start game
+              <Play /> Empezar partida
             </button>
           ) : (
             <div className="waiting-host">
-              <Radio className="spin-slow" /> Waiting for host
+              <Radio className="spin-slow" /> Esperando al anfitrión
             </div>
           )}
         </div>
@@ -271,10 +319,17 @@ export function LobbyScreen() {
 }
 
 function title(value: string): string {
+  const translated: Record<string, string> = {
+    CLASSIC: 'Clásico',
+    BLITZ: 'Blitz',
+    CHAOS: 'Caos',
+    TYCOON: 'Magnate',
+    TEAMS: 'Equipos',
+    SURVIVAL: 'Supervivencia',
+    DUEL: 'Duelo',
+    PROPERTY_RUSH: 'Fiebre inmobiliaria',
+    CUSTOM: 'A medida'
+  };
+  if (translated[value]) return translated[value];
   return value.charAt(0) + value.slice(1).toLowerCase().replaceAll('_', ' ');
-}
-function mapName(value: string): string {
-  if (value === 'world-capital-routes') return 'Rutas del Mundo';
-  if (value === 'neon-city') return 'World Capitals';
-  return value.split('-').map(title).join(' ');
 }

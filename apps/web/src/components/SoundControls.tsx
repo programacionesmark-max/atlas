@@ -21,7 +21,7 @@ export function SoundControls() {
       <button
         className="sound-controls__trigger"
         type="button"
-        aria-label={settings.muted ? 'Sound muted' : 'Sound settings'}
+        aria-label={settings.muted ? 'Sonido silenciado' : 'Ajustes de sonido'}
         aria-expanded={open}
         onClick={() => {
           void soundManager.unlock();
@@ -31,29 +31,37 @@ export function SoundControls() {
         {settings.muted ? <VolumeX /> : <Volume2 />}
       </button>
       {open ? (
-        <section className="sound-panel" role="dialog" aria-label="Sound settings">
+        <section className="sound-panel" role="dialog" aria-label="Ajustes de sonido">
           <div className="sound-panel__title">
             <span>
-              <Music2 /> Sound
+              <Music2 /> Sonido
             </span>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close sound settings">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Cerrar ajustes de sonido"
+            >
               <X />
             </button>
           </div>
           <VolumeSlider
-            label="Master"
+            label="General"
             value={settings.master}
             onChange={(v) => update('master', v)}
           />
-          <VolumeSlider label="Music" value={settings.music} onChange={(v) => update('music', v)} />
-          <VolumeSlider label="Effects" value={settings.sfx} onChange={(v) => update('sfx', v)} />
+          <VolumeSlider
+            label="Música"
+            value={settings.music}
+            onChange={(v) => update('music', v)}
+          />
+          <VolumeSlider label="Efectos" value={settings.sfx} onChange={(v) => update('sfx', v)} />
           <button
             className="button button--outline sound-panel__mute"
             type="button"
             onClick={() => soundManager.setSettings({ muted: !settings.muted })}
           >
             {settings.muted ? <Volume2 /> : <VolumeX />}
-            {settings.muted ? 'Enable sound' : 'Mute all'}
+            {settings.muted ? 'Activar sonido' : 'Silenciar todo'}
           </button>
         </section>
       ) : null}
@@ -82,7 +90,7 @@ function VolumeSlider({
         step="1"
         value={percentage}
         onChange={(event) => onChange(event.target.value)}
-        aria-label={`${label} volume`}
+        aria-label={`Volumen de ${label.toLowerCase()}`}
       />
     </label>
   );

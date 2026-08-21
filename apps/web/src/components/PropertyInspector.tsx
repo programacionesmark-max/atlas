@@ -1,15 +1,15 @@
 import { calculateRent, ownerHasCompleteGroup, type GameState } from '@circuit/game-engine';
 import {
-  Building2,
   CheckCircle2,
-  Factory,
   Gavel,
   Hammer,
+  Hotel,
   Home,
   Landmark,
   LockKeyhole,
   UnlockKeyhole
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { getAtlasMap, type VisualTile } from '../data/atlas';
 
@@ -30,6 +30,7 @@ export function PropertyInspector({
   onAction,
   onTrade
 }: PropertyInspectorProps) {
+  const [view, setView] = useState<'CITY' | 'COUNTRY'>('CITY');
   const property = getAtlasMap(state.mapId).properties.get(tile.id);
   const tileConfig = getAtlasMap(state.mapId).config.tiles.find((item) => item.id === tile.id);
   const effectivePrice = property
@@ -50,6 +51,13 @@ export function PropertyInspector({
   const currentRent = ownership?.ownerId
     ? calculateRent(state, getAtlasMap(state.mapId).config, ownership)
     : (property?.baseRent ?? 0);
+  const nextRent =
+    property && ownership?.ownerId && ownership.upgradeLevel < state.rules.maxUpgradeLevel
+      ? calculateRent(state, getAtlasMap(state.mapId).config, {
+          ...ownership,
+          upgradeLevel: ownership.upgradeLevel + 1
+        })
+      : null;
   const canDevelopNow =
     countryComplete &&
     !ownership?.mortgaged &&
@@ -59,110 +67,156 @@ export function PropertyInspector({
     state.pendingPropertyDecision?.propertyId === tile.id &&
     state.pendingPropertyDecision.playerId === viewerId;
 
+  useEffect(() => setView('CITY'), [tile.id]);
+
   return (
-    <aside className="property-inspector">
-      <span className="section-label">
-        {property ? 'City deed' : tile.kind.replaceAll('_', ' ')}
-      </span>
-      <div className="property-art">
-        <Building2 />
-      </div>
+    <aside className={property ? 'property-inspector is-property' : 'property-inspector'}>
+      <span className="section-label">{property ? 'Ciudad' : tile.kind.replaceAll('_', ' ')}</span>
       <h2>{tile.name}</h2>
       {tile.region ? <p className="property-region">{tile.region}</p> : null}
       {property ? (
         <>
-          <dl className="property-values">
-            <div>
-              <dt>Price</dt>
-              <dd>${effectivePrice?.toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt>Rent now</dt>
-              <dd>${currentRent.toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt>Mortgage</dt>
-              <dd>${property.mortgageValue.toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt>Upgrades</dt>
-              <dd>{ownership?.upgradeLevel ?? 0}</dd>
-            </div>
-          </dl>
-          <div className={countryComplete ? 'country-portfolio is-complete' : 'country-portfolio'}>
-            <span>{countryComplete ? <CheckCircle2 /> : <Landmark />}</span>
-            <div>
-              <small>País · {tile.region ?? property.group.replace('country-', '')}</small>
-              <strong>
-                {isMine
-                  ? `${countryOwned}/${countryProperties.length} ciudades`
-                  : `${countryProperties.length} ciudades`}
-              </strong>
-              <p>
-                {countryComplete
-                  ? 'País completo: renta doble y construcción desbloqueada.'
-                  : 'Controla todas sus ciudades para construir.'}
-              </p>
-            </div>
-          </div>
-          {ownership?.upgradeLevel ? (
-            <div className="development-status">
-              {ownership.upgradeLevel < 3 ? <Home /> : <Factory />}
+          <div className="property-tabs" role="tablist" aria-label="Detalles de la propiedad">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'CITY'}
+              className={view === 'CITY' ? 'is-active' : ''}
+              onClick={() => setView('CITY')}
+            >
+              Ciudad
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'COUNTRY'}
+              className={view === 'COUNTRY' ? 'is-active' : ''}
+              onClick={() => setView('COUNTRY')}
+            >
+              País{' '}
               <span>
-                <small>Desarrollo actual</small>
-                <strong>{developmentName(ownership.upgradeLevel)}</strong>
+                {countryOwned}/{countryProperties.length}
               </span>
-            </div>
-          ) : null}
-          <p className="ownership-line">
-            {owner ? (
-              <>
-                Owned by <strong>{owner.name}</strong>
-                {ownership?.mortgaged ? ' · Mortgaged' : ''}
-              </>
-            ) : (
-              'Available from the bank'
-            )}
-          </p>
-          {isPending ? (
-            <div className="inspector-actions">
-              <button
-                className="button button--primary"
-                disabled={pending}
-                type="button"
-                onClick={() => onAction('BUY_PROPERTY')}
-              >
-                <Landmark /> Buy
-              </button>
-              <button
-                className="button button--outline"
-                disabled={pending}
-                type="button"
-                onClick={() => onAction('DECLINE_PROPERTY')}
-              >
-                <Gavel /> Auction
-              </button>
-            </div>
-          ) : null}
-          {isMine ? (
-            <div className="asset-actions">
-              <button
-                className="button button--outline"
-                disabled={pending}
-                type="button"
-                onClick={() =>
-                  onAction(ownership?.mortgaged ? 'UNMORTGAGE_PROPERTY' : 'MORTGAGE_PROPERTY', {
-                    propertyId: tile.id
-                  })
-                }
-              >
-                {ownership?.mortgaged ? <UnlockKeyhole /> : <LockKeyhole />}
-                {ownership?.mortgaged ? 'Unmortgage' : 'Mortgage'}
-              </button>
-              {!ownership?.mortgaged ? (
-                <>
+            </button>
+          </div>
+
+          {view === 'CITY' ? (
+            <div className="property-tab-panel" role="tabpanel">
+              <dl className="property-values">
+                <div>
+                  <dt>Precio</dt>
+                  <dd>${effectivePrice?.toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt>Renta actual</dt>
+                  <dd>${currentRent.toLocaleString()}</dd>
+                </div>
+              </dl>
+              <p className="ownership-line">
+                {owner ? (
+                  <>
+                    Propiedad de <strong>{owner.name}</strong>
+                    {ownership?.mortgaged ? ' · Hipotecada' : ''}
+                  </>
+                ) : (
+                  'Disponible en el banco'
+                )}
+              </p>
+              {isPending ? (
+                <div className="inspector-actions">
+                  <button
+                    className="button button--primary"
+                    disabled={pending}
+                    type="button"
+                    onClick={() => onAction('BUY_PROPERTY')}
+                  >
+                    <Landmark /> Comprar por ${effectivePrice?.toLocaleString()}
+                  </button>
                   <button
                     className="button button--outline"
+                    disabled={pending}
+                    type="button"
+                    onClick={() => onAction('DECLINE_PROPERTY')}
+                  >
+                    <Gavel /> Subastar
+                  </button>
+                </div>
+              ) : null}
+              {isMine ? (
+                <div className="asset-actions">
+                  <button
+                    className="button button--outline"
+                    disabled={pending}
+                    type="button"
+                    onClick={() =>
+                      onAction(ownership?.mortgaged ? 'UNMORTGAGE_PROPERTY' : 'MORTGAGE_PROPERTY', {
+                        propertyId: tile.id
+                      })
+                    }
+                  >
+                    {ownership?.mortgaged ? <UnlockKeyhole /> : <LockKeyhole />}
+                    {ownership?.mortgaged ? 'Cancelar hipoteca' : 'Hipotecar'}
+                  </button>
+                  <button className="text-button" type="button" onClick={onTrade}>
+                    Ofrecer en intercambio
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="property-tab-panel" role="tabpanel">
+              <div
+                className={countryComplete ? 'country-portfolio is-complete' : 'country-portfolio'}
+              >
+                <span>{countryComplete ? <CheckCircle2 /> : <Landmark />}</span>
+                <div>
+                  <small>País · {tile.region ?? property.group.replace('country-', '')}</small>
+                  <strong>
+                    {isMine
+                      ? `${countryOwned}/${countryProperties.length} ciudades`
+                      : `${countryProperties.length} ciudades`}
+                  </strong>
+                  <p>
+                    {countryComplete
+                      ? 'País completo. Ya puedes construir.'
+                      : 'Consigue todas para construir casas.'}
+                  </p>
+                  <span className="country-progress-bar" aria-hidden="true">
+                    <i
+                      style={{
+                        width: `${countryProperties.length ? (countryOwned / countryProperties.length) * 100 : 0}%`
+                      }}
+                    />
+                  </span>
+                </div>
+              </div>
+              {ownership?.upgradeLevel ? (
+                <div className="development-status">
+                  {developmentIcon(ownership.upgradeLevel)}
+                  <span>
+                    <small>Desarrollo actual</small>
+                    <strong>{developmentName(ownership.upgradeLevel)}</strong>
+                    <p>Renta actual · ${currentRent.toLocaleString()}</p>
+                  </span>
+                </div>
+              ) : null}
+              {isMine && countryComplete ? (
+                <div className="classic-build-track" aria-label="Progreso de construcción">
+                  {[1, 2, 3, 4].map((level) => (
+                    <span className={ownership.upgradeLevel >= level ? 'is-built' : ''} key={level}>
+                      <Home />
+                      {level}
+                    </span>
+                  ))}
+                  <span className={ownership.upgradeLevel >= 5 ? 'is-built' : ''}>
+                    <Hotel /> Hotel
+                  </span>
+                </div>
+              ) : null}
+              {isMine && !ownership?.mortgaged ? (
+                <div className="asset-actions">
+                  <button
+                    className="button button--outline build-upgrade-button"
                     disabled={
                       pending ||
                       ownership.upgradeLevel >= state.rules.maxUpgradeLevel ||
@@ -172,9 +226,19 @@ export function PropertyInspector({
                     onClick={() => onAction('BUILD_UPGRADE', { propertyId: tile.id })}
                   >
                     <Hammer />
-                    {ownership.upgradeLevel >= state.rules.maxUpgradeLevel
-                      ? 'Máximo desarrollo'
-                      : `${nextDevelopmentName(ownership.upgradeLevel)} · $${property.upgradeCost.toLocaleString()}`}
+                    <span>
+                      <strong>
+                        {ownership.upgradeLevel >= state.rules.maxUpgradeLevel
+                          ? 'Máximo desarrollo'
+                          : nextDevelopmentName(ownership.upgradeLevel)}
+                      </strong>
+                      {ownership.upgradeLevel < state.rules.maxUpgradeLevel ? (
+                        <small>
+                          ${property.upgradeCost.toLocaleString()}
+                          {nextRent !== null ? ` · renta $${nextRent.toLocaleString()}` : ''}
+                        </small>
+                      ) : null}
+                    </span>
                   </button>
                   {ownership.upgradeLevel > 0 ? (
                     <button
@@ -183,16 +247,13 @@ export function PropertyInspector({
                       type="button"
                       onClick={() => onAction('SELL_UPGRADE', { propertyId: tile.id })}
                     >
-                      Sell one upgrade
+                      Vender una mejora
                     </button>
                   ) : null}
-                </>
+                </div>
               ) : null}
-              <button className="text-button" type="button" onClick={onTrade}>
-                Offer in trade
-              </button>
             </div>
-          ) : null}
+          )}
         </>
       ) : (
         <p className="tile-description">
@@ -210,16 +271,15 @@ function statePropertyConfigs(mapId: string, group: string) {
 }
 
 function developmentName(level: number): string {
-  return (
-    ['Ciudad', 'Casas', 'Zona comercial', 'Empresas', 'Distrito corporativo'][level] ??
-    'Distrito corporativo'
-  );
+  if (level >= 5) return 'Hotel';
+  return `${level} ${level === 1 ? 'casa' : 'casas'}`;
 }
 
 function nextDevelopmentName(level: number): string {
-  return (
-    ['Construir casas', 'Abrir comercios', 'Fundar empresas', 'Crear distrito corporativo'][
-      level
-    ] ?? 'Máximo desarrollo'
-  );
+  if (level >= 4) return level === 4 ? 'Construir hotel' : 'Máximo desarrollo';
+  return `Construir casa ${level + 1}`;
+}
+
+function developmentIcon(level: number) {
+  return level >= 5 ? <Hotel /> : <Home />;
 }

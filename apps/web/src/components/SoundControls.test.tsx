@@ -14,8 +14,8 @@ describe('SoundControls', () => {
 
   it('updates and persists the music volume', () => {
     render(<SoundControls />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sound settings' }));
-    fireEvent.change(screen.getByRole('slider', { name: 'Music volume' }), {
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes de sonido' }));
+    fireEvent.change(screen.getByRole('slider', { name: 'Volumen de música' }), {
       target: { value: '35' }
     });
 
@@ -25,10 +25,10 @@ describe('SoundControls', () => {
 
   it('supports muting every sound channel at once', () => {
     render(<SoundControls />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sound settings' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Mute all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes de sonido' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Silenciar todo' }));
 
-    expect(screen.getByRole('button', { name: 'Enable sound' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Activar sonido' })).toBeInTheDocument();
     expect(window.localStorage.getItem('atlas-estates:audio:v1')).toContain('"muted":true');
   });
 });

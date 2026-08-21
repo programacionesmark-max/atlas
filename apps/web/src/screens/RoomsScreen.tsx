@@ -21,6 +21,7 @@ export function RoomsScreen() {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const showDrawer = params.has('create');
 
   useEffect(() => {
@@ -43,8 +44,13 @@ export function RoomsScreen() {
   }, [rooms, search]);
 
   async function handleJoin(roomCode: string, roomPassword?: string): Promise<void> {
-    const room = await joinRoom(roomCode, roomPassword);
-    void navigate(`/room/${room.code}`);
+    setJoinError(null);
+    try {
+      const room = await joinRoom(roomCode, roomPassword);
+      void navigate(`/room/${room.code}`);
+    } catch (error) {
+      setJoinError(error instanceof Error ? error.message : 'No se pudo entrar en la sala.');
+    }
   }
 
   async function handleCodeSubmit(event: FormEvent): Promise<void> {
@@ -62,53 +68,54 @@ export function RoomsScreen() {
       <ScreenTransition className={showDrawer ? 'rooms-layout is-creating' : 'rooms-layout'}>
         <section className="rooms-main">
           <Link to="/" className="back-link">
-            <ArrowLeft /> Back to home
+            <ArrowLeft /> Volver al inicio
           </Link>
           <div className="rooms-heading">
             <div>
-              <h1>Public rooms</h1>
-              <p>Find a table and make your move.</p>
+              <span className="section-label">Multijugador en directo</span>
+              <h1>Salas públicas</h1>
+              <p>Únete a una mesa o crea una nueva en segundos.</p>
             </div>
             <button
               className="button button--primary"
               type="button"
               onClick={() => setParams({ create: 'public' })}
             >
-              Create game
+              Crear partida
             </button>
           </div>
           <div className="room-toolbar">
             <label className="search-field">
               <Search />
               <input
-                aria-label="Search rooms"
+                aria-label="Buscar salas"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search rooms"
+                placeholder="Buscar por nombre o código"
               />
             </label>
             <button
               type="button"
               className="icon-button"
               onClick={() => void listRooms()}
-              aria-label="Refresh rooms"
+              aria-label="Actualizar salas"
             >
               <RefreshCw />
             </button>
           </div>
           <div className="room-list" aria-live="polite">
             <div className="room-list__header">
-              <span>Room</span>
-              <span>Mode / map</span>
-              <span>Players</span>
-              <span>Access</span>
+              <span>Sala</span>
+              <span>Modo / tablero</span>
+              <span>Jugadores</span>
+              <span>Acceso</span>
             </div>
-            {loading ? <div className="room-empty">Loading live rooms…</div> : null}
+            {loading ? <div className="room-empty">Buscando salas disponibles…</div> : null}
             {!loading && filteredRooms.length === 0 ? (
               <div className="room-empty">
                 <UsersRound />
-                <h2>No open rooms</h2>
-                <p>Create one and invite another player with its code.</p>
+                <h2>No hay salas abiertas</h2>
+                <p>Crea una y comparte su código para empezar.</p>
               </div>
             ) : null}
             {filteredRooms.map((room) => (
@@ -133,7 +140,7 @@ export function RoomsScreen() {
                     onClick={() => void handleJoin(room.code)}
                     disabled={room.playerCount >= room.maxPlayers}
                   >
-                    Join
+                    Entrar
                   </button>
                 </div>
               </div>
@@ -141,11 +148,11 @@ export function RoomsScreen() {
           </div>
           <form className="join-code" onSubmit={(event) => void handleCodeSubmit(event)}>
             <div>
-              <span className="section-label">Join by code</span>
-              <p>Enter a six-character room code.</p>
+              <span className="section-label">Entrar con código</span>
+              <p>Escribe el código de seis caracteres.</p>
             </div>
             <input
-              aria-label="Room code"
+              aria-label="Código de sala"
               value={code}
               onChange={(event) => setCode(event.target.value.toUpperCase())}
               placeholder="AB7F92"
@@ -154,18 +161,26 @@ export function RoomsScreen() {
               required
             />
             <input
-              aria-label="Room password"
+              aria-label="Contraseña de sala"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password (if set)"
+              placeholder="Contraseña (si existe)"
             />
             <button className="button button--outline" type="submit">
-              Join
+              Entrar
             </button>
           </form>
+          {joinError ? (
+            <div className="rooms-error" role="alert">
+              {joinError}
+              <button type="button" onClick={() => setJoinError(null)}>
+                Cerrar
+              </button>
+            </div>
+          ) : null}
           <p className="realtime-note">
-            <Clock3 /> Room availability updates live.
+            <Clock3 /> La disponibilidad se actualiza en tiempo real.
           </p>
         </section>
         {showDrawer ? (
@@ -183,6 +198,18 @@ export function RoomsScreen() {
 }
 
 function title(value: string): string {
+  const translated: Record<string, string> = {
+    CLASSIC: 'Clásico',
+    BLITZ: 'Blitz',
+    CHAOS: 'Caos',
+    TYCOON: 'Magnate',
+    TEAMS: 'Equipos',
+    SURVIVAL: 'Supervivencia',
+    DUEL: 'Duelo',
+    PROPERTY_RUSH: 'Fiebre inmobiliaria',
+    CUSTOM: 'A medida'
+  };
+  if (translated[value]) return translated[value];
   return value.charAt(0) + value.slice(1).toLowerCase().replaceAll('_', ' ');
 }
 function mapName(value: string): string {

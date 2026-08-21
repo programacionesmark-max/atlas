@@ -9,7 +9,20 @@ export default defineConfig({
     proxy: {
       '/socket.io': {
         target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
         ws: true
+      },
+      '/ready': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true
+      },
+      '/health': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true
+      },
+      '/matches': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true
       }
     }
   },

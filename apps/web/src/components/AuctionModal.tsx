@@ -40,7 +40,7 @@ export function AuctionModal({
       <section className="auction-modal">
         <div className="modal-title">
           <h2 id="auction-title">
-            <Gavel /> Live auction
+            <Gavel /> Subasta
           </h2>
           <span>
             <Clock3 /> 00:{String(remaining).padStart(2, '0')}
@@ -52,10 +52,10 @@ export function AuctionModal({
             <h3>{property?.name ?? auction.propertyId}</h3>
           </div>
           <div>
-            <span className="section-label">Current bid</span>
+            <span className="section-label">Puja actual</span>
             <strong className="auction-amount">${auction.currentBid.toLocaleString()}</strong>
             <p>
-              Highest bidder: <b>{highest?.name ?? 'No bids yet'}</b>
+              Mejor postor: <b>{highest?.name ?? 'Sin pujas'}</b>
             </p>
           </div>
           <div className="auction-participants">
@@ -71,7 +71,7 @@ export function AuctionModal({
                 key={id}
               >
                 {state.players[id]?.name}
-                {auction.passedPlayerIds.includes(id) ? ' · passed' : ''}
+                {auction.passedPlayerIds.includes(id) ? ' · pasa' : ''}
               </span>
             ))}
           </div>
@@ -88,7 +88,7 @@ export function AuctionModal({
             min={auction.currentBid + state.rules.minimumBid}
             value={bid}
             onChange={(event) => setBid(Number(event.target.value))}
-            aria-label="Bid amount"
+            aria-label="Cantidad de la puja"
           />
           <button
             className="button button--primary"
@@ -96,7 +96,7 @@ export function AuctionModal({
             type="button"
             onClick={() => onAction('BID_AUCTION', { amount: bid })}
           >
-            <Gavel /> Place bid
+            <Gavel /> Pujar
           </button>
           <button
             className="button button--danger"
@@ -106,14 +106,14 @@ export function AuctionModal({
           >
             {passed ? (
               <>
-                <X /> Passed
+                <X /> Has pasado
               </>
             ) : (
-              'Pass'
+              'Pasar'
             )}
           </button>
         </div>
-        <p className="server-note">Bidding closes automatically on the authoritative server.</p>
+        <p className="server-note">La subasta termina automáticamente.</p>
       </section>
     </div>
   );

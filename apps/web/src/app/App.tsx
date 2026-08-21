@@ -55,7 +55,7 @@ export function App() {
       <Suspense
         fallback={
           <div className="centered-status">
-            <p>Loading Atlas Estates…</p>
+            <p>Cargando Atlas Estates…</p>
           </div>
         }
       >

@@ -1,5 +1,5 @@
 import type { GameMode, RoomSettings } from '@circuit/shared';
-import { Check, ChevronRight, Gavel, Handshake, LockKeyhole, Sparkles, X } from 'lucide-react';
+import { Check, Gavel, Handshake, LockKeyhole, Sparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { ATLAS_MAPS, ATLAS_MODES } from '../data/atlas';
@@ -9,7 +9,7 @@ const defaultSettings: RoomSettings = {
   name: 'Mesa de Jamie',
   visibility: 'PUBLIC',
   maxPlayers: 4,
-  mapId: 'neon-city',
+  mapId: 'world-capital-routes',
   mode: 'CLASSIC',
   allowSpectators: true,
   rules: {
@@ -58,6 +58,7 @@ export function CreateRoomDrawer({
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(initialModeView.id === 'CUSTOM');
   const [supportedMapIds, setSupportedMapIds] = useState<readonly string[]>([
+    'world-capital-routes',
     'neon-city',
     'grand-europe',
     'americas',
@@ -117,8 +118,9 @@ export function CreateRoomDrawer({
     <aside className="create-drawer create-drawer--atlas" aria-label="Crear partida">
       <div className="drawer-title">
         <div>
-          <span className="section-label">Nueva expedición</span>
-          <h2>Elige tu próxima ruta</h2>
+          <span className="section-label">Nueva partida</span>
+          <h2>Prepara la mesa</h2>
+          <p>Un tablero recomendado; el resto es opcional.</p>
         </div>
         <button type="button" onClick={onClose} aria-label="Cerrar">
           <X />
@@ -127,27 +129,11 @@ export function CreateRoomDrawer({
       <form onSubmit={(event) => void submit(event)}>
         <section className="route-picker" aria-labelledby="route-title">
           <div className="picker-heading">
-            <h3 id="route-title">Mapa</h3>
-            <span>Rutas de hasta 48 casillas</span>
+            <h3 id="route-title">Tablero</h3>
+            <span>Recomendado</span>
           </div>
-          <div className="route-tabs" role="tablist" aria-label="Mapas disponibles">
-            {availableMaps.map((map) => (
-              <button
-                key={map.config.id}
-                type="button"
-                role="tab"
-                aria-selected={settings.mapId === map.config.id}
-                className={settings.mapId === map.config.id ? 'is-selected' : ''}
-                onClick={() => setSettings((current) => ({ ...current, mapId: map.config.id }))}
-              >
-                {map.config.name}
-              </button>
-            ))}
-          </div>
-          <button
-            className="route-preview"
-            type="button"
-            onClick={() => setSettings((current) => ({ ...current, mapId: selectedMap.config.id }))}
+          <div
+            className="route-preview simple-route-preview"
             style={{ '--route-accent': selectedMap.accent } as React.CSSProperties}
           >
             <img src={selectedMap.image} alt="" />
@@ -157,36 +143,15 @@ export function CreateRoomDrawer({
               <em>{selectedMap.config.theme}</em>
             </span>
             <Check aria-hidden="true" />
-          </button>
+          </div>
         </section>
 
         <section className="mode-picker" aria-labelledby="mode-title">
           <div className="picker-heading">
-            <h3 id="mode-title">Modo de juego</h3>
-            <span>9 reglas distintas</span>
+            <h3 id="mode-title">Reglas</h3>
+            <span>Fácil de aprender</span>
           </div>
-          <div className="mode-list">
-            {ATLAS_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                className={settings.mode === mode.id ? 'is-selected' : ''}
-                aria-pressed={settings.mode === mode.id}
-                onClick={() => {
-                  setSettings((current) => applyMode(current, mode.id));
-                  setShowAdvanced(mode.id === 'CUSTOM');
-                }}
-              >
-                <i>{mode.icon}</i>
-                <span>
-                  <strong>{mode.name}</strong>
-                  <small>{mode.description}</small>
-                </span>
-                <ChevronRight />
-              </button>
-            ))}
-          </div>
-          <div className="mode-detail">
+          <div className="mode-detail simple-mode-detail">
             <strong>{selectedMode.name}</strong>
             <p>{selectedMode.description}</p>
             <ul>
@@ -260,6 +225,36 @@ export function CreateRoomDrawer({
         </button>
         {showAdvanced ? (
           <section className="advanced-rules">
+            <label>
+              Otros modos
+              <select
+                value={settings.mode}
+                onChange={(event) =>
+                  setSettings((current) => applyMode(current, event.target.value as GameMode))
+                }
+              >
+                {ATLAS_MODES.map((mode) => (
+                  <option value={mode.id} key={mode.id}>
+                    {mode.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Otros tableros
+              <select
+                value={settings.mapId}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, mapId: event.target.value }))
+                }
+              >
+                {availableMaps.map((map) => (
+                  <option value={map.config.id} key={map.config.id}>
+                    {map.config.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>
               Dinero inicial
               <input

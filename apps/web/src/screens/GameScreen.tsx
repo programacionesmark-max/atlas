@@ -6,9 +6,9 @@ import {
   Clock3,
   Flag,
   Handshake,
+  Landmark,
   Menu,
   MessageCircle,
-  ShieldAlert,
   Send,
   UsersRound
 } from 'lucide-react';
@@ -20,7 +20,9 @@ import { BankruptcyConfirm } from '../components/BankruptcyConfirm';
 import { soundManager } from '../audio/sound-manager';
 import { useChatAudio, useGameAudio } from '../audio/use-game-audio';
 import { Brand } from '../components/Brand';
+import { EmpireModal } from '../components/EmpireModal';
 import { GameBoard } from '../components/GameBoard';
+import { GameMenuModal } from '../components/GameMenuModal';
 import { FlightDecision } from '../components/FlightDecision';
 import { PlayerRail } from '../components/PlayerRail';
 import { PropertyInspector } from '../components/PropertyInspector';
@@ -49,6 +51,9 @@ export function GameScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
   const [showBankruptcy, setShowBankruptcy] = useState(false);
+  const [showGameMenu, setShowGameMenu] = useState(false);
+  const [showEmpire, setShowEmpire] = useState(false);
+  const [showDesktopChat, setShowDesktopChat] = useState(false);
   const [dismissedRoundEventId, setDismissedRoundEventId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<'board' | 'players' | 'chat' | 'actions'>('board');
   const [message, setMessage] = useState('');
@@ -97,7 +102,7 @@ export function GameScreen() {
     try {
       await sendGameAction(type, payload);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Action rejected by server.');
+      setActionError(error instanceof Error ? error.message : 'El servidor rechazó la acción.');
     } finally {
       setPending(false);
     }
@@ -126,7 +131,7 @@ export function GameScreen() {
     return (
       <div className="centered-status">
         <Clock3 className="spin-slow" />
-        <p>Restoring authoritative game state…</p>
+        <p>Recuperando la partida multijugador…</p>
       </div>
     );
   }
@@ -143,7 +148,7 @@ export function GameScreen() {
       state.phase === 'PAYMENT' ||
       state.phase === 'ROUND_EVENT' ||
       state.phase === 'TURN_END');
-  const eventActivity = state.activity.slice(-30);
+  const eventActivity = state.activity.slice(-4);
   const openTrade = Object.values(state.trades).some(
     (trade) => trade.status === 'OPEN' && trade.recipientId === identity.playerId
   );
@@ -152,20 +157,39 @@ export function GameScreen() {
     (state.lastRoundEvent?.id !== dismissedRoundEventId ? state.lastRoundEvent : null);
 
   return (
-    <ScreenTransition className="game-screen">
+    <ScreenTransition className="game-screen simple-game final-game">
       <header className="game-topbar">
+        <span hidden data-state-version={wrapped.version}>
+          Sincronización #{wrapped.version}
+        </span>
         <Brand compact />
         <div className="turn-heading">
-          <strong>{isMyTurn ? 'Your turn' : `${current?.name ?? '—'}’s turn`}</strong>
-          <span>{state.phase.replaceAll('_', ' ')}</span>
+          <strong>{isMyTurn ? 'Tu turno' : `Turno de ${current?.name ?? '—'}`}</strong>
+          <span>
+            Ronda {state.round}
+            {state.rules.maxRounds ? ` de ${state.rules.maxRounds}` : ''}
+          </span>
+        </div>
+        <div className="game-top-actions" aria-label="Acciones secundarias">
+          <button
+            type="button"
+            onClick={() => setShowTrade(true)}
+            disabled={!room.settings.rules.tradesEnabled}
+            aria-label="Intercambiar con jugadores"
+          >
+            <ArrowLeftRight /> <span>Intercambiar</span>
+            {openTrade ? <i>!</i> : null}
+          </button>
+          <button type="button" onClick={() => setShowEmpire(true)} aria-label="Abrir mi imperio">
+            <Landmark /> <span>Mi imperio</span>
+          </button>
         </div>
         <TurnTimer startedAt={state.turnStartedAt} durationMs={state.rules.turnTimeMs} />
-        <span className="state-version">State #{wrapped.version}</span>
         <button
           className="icon-button"
           type="button"
-          onClick={() => void navigate(`/room/${room.code}`)}
-          aria-label="Game menu"
+          onClick={() => setShowGameMenu(true)}
+          aria-label="Menú de partida"
         >
           <Menu />
         </button>
@@ -175,7 +199,7 @@ export function GameScreen() {
         <div className="action-error" role="alert">
           {actionError}
           <button type="button" onClick={() => setActionError(null)}>
-            Dismiss
+            Cerrar
           </button>
         </div>
       ) : null}
@@ -213,77 +237,54 @@ export function GameScreen() {
             onAction={(type, payload) => void action(type, payload ?? {})}
             onTrade={() => setShowTrade(true)}
           />
-          <div className="turn-actions game-action-dock">
-            <span className="game-action-dock__label">Centro de acciones</span>
-            <button
-              className={openTrade ? 'button action-tile has-notice' : 'button action-tile'}
-              type="button"
-              onClick={() => setShowTrade(true)}
-              disabled={!room.settings.rules.tradesEnabled}
-            >
-              <span>
-                <ArrowLeftRight />
-              </span>
-              <strong>Trade</strong>
-              <small>{openTrade ? 'Oferta esperando' : 'Negocia ciudades'}</small>
-            </button>
-            <button
-              className="button action-tile action-tile--danger"
-              type="button"
-              onClick={() => setShowBankruptcy(true)}
-              disabled={state.players[identity.playerId]?.status !== 'ACTIVE'}
-            >
-              <span>
-                <ShieldAlert />
-              </span>
-              <strong>Bancarrota</strong>
-              <small>Abandonar partida</small>
-            </button>
-            {state.paymentDue?.debtorId === identity.playerId ? (
-              <>
+          {state.paymentDue?.debtorId === identity.playerId || canEnd ? (
+            <div className="turn-actions game-action-dock">
+              {state.paymentDue?.debtorId === identity.playerId ? (
+                <>
+                  <button
+                    className="button button--ready"
+                    type="button"
+                    disabled={pending}
+                    onClick={() => void action('SETTLE_DEBT', {})}
+                  >
+                    <Banknote /> Pagar deuda
+                  </button>
+                  <button
+                    className="button button--danger"
+                    type="button"
+                    disabled={pending}
+                    onClick={() => void action('DECLARE_BANKRUPTCY', {})}
+                  >
+                    <Flag /> Bancarrota por deuda
+                  </button>
+                </>
+              ) : null}
+              {canEnd ? (
                 <button
-                  className="button button--ready"
+                  className="button button--secondary"
                   type="button"
                   disabled={pending}
-                  onClick={() => void action('SETTLE_DEBT', {})}
+                  onClick={() => void action('END_TURN', {})}
                 >
-                  <Banknote /> Pay debt
+                  Finalizar turno
                 </button>
-                <button
-                  className="button button--danger"
-                  type="button"
-                  disabled={pending}
-                  onClick={() => void action('DECLARE_BANKRUPTCY', {})}
-                >
-                  <Flag /> Bancarrota por deuda
-                </button>
-              </>
-            ) : null}
-            {canEnd ? (
-              <button
-                className="button button--secondary"
-                type="button"
-                disabled={pending}
-                onClick={() => void action('END_TURN', {})}
-              >
-                End turn
-              </button>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <section className="activity-panel">
-          <span className="section-label">Activity feed</span>
+          <span className="section-label">Actividad reciente</span>
           <div>
             {eventActivity.length ? (
-              eventActivity.map((entry) => <p key={entry.id}>{entry.message}</p>)
+              eventActivity.map((entry) => <p key={entry.id}>{localizeActivity(entry.message)}</p>)
             ) : (
-              <p>Game started. The bank is ready.</p>
+              <p>La partida ha comenzado. El banco está listo.</p>
             )}
           </div>
         </section>
         <section
-          className={mobilePanel === 'chat' ? 'game-chat mobile-drawer is-open' : 'game-chat'}
+          className={`${mobilePanel === 'chat' ? 'game-chat mobile-drawer is-open' : 'game-chat'}${showDesktopChat ? ' is-desktop-open' : ''}`}
         >
           <header className="game-chat__header">
             <span>
@@ -330,21 +331,36 @@ export function GameScreen() {
               placeholder="Escribe a la mesa…"
               aria-label="Mensaje para los jugadores"
             />
-            <button type="submit" disabled={!message.trim()} aria-label="Send">
+            <button type="submit" disabled={!message.trim()} aria-label="Enviar mensaje">
               <Send />
             </button>
           </form>
         </section>
+        <button
+          className="corner-menu-button empire-trigger"
+          type="button"
+          onClick={() => setShowEmpire(true)}
+        >
+          <Landmark /> Mi imperio
+        </button>
+        <button
+          className={`corner-menu-button chat-trigger${showDesktopChat ? ' is-open' : ''}`}
+          type="button"
+          onClick={() => setShowDesktopChat((value) => !value)}
+        >
+          <MessageCircle /> {showDesktopChat ? 'Cerrar chat' : 'Chat'}
+          {chat.length ? <i>{Math.min(chat.length, 9)}</i> : null}
+        </button>
       </div>
 
-      <nav className="mobile-game-nav" aria-label="Game panels">
+      <nav className="mobile-game-nav" aria-label="Paneles de partida">
         <button
           type="button"
           className={mobilePanel === 'players' ? 'is-active' : ''}
           onClick={() => setMobilePanel('players')}
         >
           <UsersRound />
-          Players
+          Jugadores
         </button>
         <button
           type="button"
@@ -352,7 +368,7 @@ export function GameScreen() {
           onClick={() => setMobilePanel('board')}
         >
           <span className="nav-board-icon" />
-          Board
+          Tablero
         </button>
         <button
           type="button"
@@ -369,7 +385,7 @@ export function GameScreen() {
         >
           <Banknote />
           {actionRequired ? <i>!</i> : null}
-          Actions
+          Acciones
         </button>
       </nav>
 
@@ -404,6 +420,36 @@ export function GameScreen() {
           onClose={() => setShowBankruptcy(false)}
           onConfirm={() => {
             void action('FORFEIT_GAME', {}).then(() => setShowBankruptcy(false));
+          }}
+        />
+      ) : null}
+      {showGameMenu ? (
+        <GameMenuModal
+          roomCode={room.code}
+          tradesEnabled={room.settings.rules.tradesEnabled}
+          onClose={() => setShowGameMenu(false)}
+          onOpenEmpire={() => {
+            setShowGameMenu(false);
+            setShowEmpire(true);
+          }}
+          onOpenTrade={() => {
+            setShowGameMenu(false);
+            setShowTrade(true);
+          }}
+          onBankruptcy={() => {
+            setShowGameMenu(false);
+            setShowBankruptcy(true);
+          }}
+        />
+      ) : null}
+      {showEmpire ? (
+        <EmpireModal
+          state={state}
+          viewerId={identity.playerId}
+          onClose={() => setShowEmpire(false)}
+          onSelectProperty={(tile) => {
+            setSelectedTile(tile);
+            setMobilePanel('actions');
           }}
         />
       ) : null}
@@ -471,4 +517,20 @@ function parseGameState(value: JsonValue | undefined): GameState | null {
   )
     return null;
   return value as unknown as GameState;
+}
+
+function localizeActivity(message: string): string {
+  if (message === 'The game started') return 'La partida ha comenzado';
+  return message
+    .replace(/^(.+) rolled (\d+)$/, '$1 sacó $2')
+    .replace(/^(.+) landed on (.+)$/, '$1 cayó en $2')
+    .replace(/^(.+) reached (.+)$/, '$1 llegó a $2')
+    .replace(/^(.+) continued by land$/, '$1 continuó por tierra')
+    .replace(/^(.+) bought (.+) for \$(\d+)$/, '$1 compró $2 por $$$3')
+    .replace(/^(.+) paid \$(\d+) to (.+)$/, '$1 pagó $$$2 a $3')
+    .replace(/^Auction started for (.+)$/, 'Subasta iniciada por $1')
+    .replace(
+      /^Ronda (\d+): (.+) abre la Cámara del Atlas$/,
+      'Ronda $1: $2 roba una carta de suerte'
+    );
 }

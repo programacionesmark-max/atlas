@@ -13,6 +13,7 @@ import { create } from 'zustand';
 
 import { loadStoredSession, saveStoredSession } from '../lib/session-storage';
 import { getSupportedMapIds } from '../lib/server-capabilities';
+import { createClientId } from '../lib/client-id';
 import { socket } from '../lib/socket';
 
 interface RealtimeState {
@@ -258,7 +259,7 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
         {
           roomId: room.id,
           action: {
-            actionId: crypto.randomUUID(),
+            actionId: createClientId(),
             expectedVersion: game.version,
             type,
             ...(payload === undefined ? {} : { payload })

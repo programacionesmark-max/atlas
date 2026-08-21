@@ -44,7 +44,7 @@ describe('world route movement and paid flight decisions', () => {
       start(),
       { type: 'ROLL_DICE', actorId: 'a' },
       worldCapitalRoutesMap,
-      context([4, 4])
+      context([5, 5])
     );
 
     expect(state.phase).toBe('FLIGHT_DECISION');
@@ -58,9 +58,11 @@ describe('world route movement and paid flight decisions', () => {
       'world-start',
       'london',
       'manchester',
+      'birmingham',
       'europe-news',
       'paris',
       'lyon',
+      'marseille',
       'europe-airport'
     ]);
   });
@@ -70,7 +72,7 @@ describe('world route movement and paid flight decisions', () => {
       start(),
       { type: 'ROLL_DICE', actorId: 'a' },
       worldCapitalRoutesMap,
-      context([4, 4])
+      context([5, 5])
     );
     const cash = state.players.a?.cash ?? 0;
 
@@ -96,7 +98,7 @@ describe('world route movement and paid flight decisions', () => {
       start(),
       { type: 'ROLL_DICE', actorId: 'a' },
       worldCapitalRoutesMap,
-      context([4, 4])
+      context([5, 5])
     );
     const cash = state.players.a?.cash ?? 0;
 
@@ -115,14 +117,15 @@ describe('world route movement and paid flight decisions', () => {
 });
 
 describe('country portfolios and development', () => {
-  it('defines every country as a collectible pair', () => {
+  it('defines every country as a collectible portfolio of two or three cities', () => {
     const groups = new Map<string, number>();
     for (const property of worldCapitalRoutesMap.properties)
       groups.set(property.group, (groups.get(property.group) ?? 0) + 1);
 
-    expect(worldCapitalRoutesMap.properties).toHaveLength(32);
+    expect(worldCapitalRoutesMap.properties).toHaveLength(40);
     expect(groups.size).toBe(16);
-    expect([...groups.values()].every((size) => size === 2)).toBe(true);
+    expect([...groups.values()].every((size) => size === 2 || size === 3)).toBe(true);
+    expect([...groups.values()].filter((size) => size === 3)).toHaveLength(8);
   });
 
   it('unlocks construction after completing a country and raises its rent', () => {
@@ -132,7 +135,8 @@ describe('country portfolios and development', () => {
       properties: {
         ...state.properties,
         london: { ...(state.properties.london as PropertyState), ownerId: 'a' },
-        manchester: { ...(state.properties.manchester as PropertyState), ownerId: 'a' }
+        manchester: { ...(state.properties.manchester as PropertyState), ownerId: 'a' },
+        birmingham: { ...(state.properties.birmingham as PropertyState), ownerId: 'a' }
       }
     };
     const rentBefore = calculateRent(

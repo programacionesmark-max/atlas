@@ -32,7 +32,10 @@ export function loadServerConfig(overrides: Partial<ServerConfig> = {}): ServerC
     port: overrides.port ?? positiveInteger(process.env.PORT, 3001),
     corsOrigins:
       overrides.corsOrigins ??
-      (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173')
+      (
+        process.env.CORS_ORIGINS ??
+        (isProduction ? 'http://localhost:5173,http://127.0.0.1:5173' : '*')
+      )
         .split(',')
         .map((value) => value.trim()),
     sessionSecret: overrides.sessionSecret ?? sessionSecret,

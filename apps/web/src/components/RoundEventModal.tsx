@@ -13,7 +13,7 @@ interface RoundEventModalProps {
   onDismiss: () => void;
 }
 
-const CARD_LABELS = ['Fortuna', 'Destino', 'Imperio'] as const;
+const CARD_LABELS = ['Suerte', 'Azar', 'Premio'] as const;
 
 export function RoundEventModal({
   pendingEvent,
@@ -49,17 +49,14 @@ export function RoundEventModal({
           <Sparkles />
         </div>
         <span className="round-event-kicker">
-          <Landmark /> Cámara del Atlas · Ronda {pendingEvent?.round ?? result?.round}
+          <Landmark /> Carta de suerte · Ronda {pendingEvent?.round ?? result?.round}
         </span>
         <h2 id="round-event-title">
-          {pendingEvent ? `El destino ha elegido a ${playerName}` : 'El Atlas ha decidido'}
+          {pendingEvent ? `${playerName}, elige una carta` : 'Resultado de la carta'}
         </h2>
         {pendingEvent ? (
           <>
-            <p>
-              Una carta puede entregar dinero, una ciudad o una mejora… pero también puede
-              arrebatártelo.
-            </p>
+            <p>Puedes ganar o perder dinero, una ciudad o una mejora.</p>
             <div className="round-event-cards">
               {CARD_LABELS.map((label, index) => (
                 <motion.button
@@ -81,14 +78,14 @@ export function RoundEventModal({
               ))}
             </div>
             <small className="round-event-waiting">
-              {canReveal ? 'Elige una carta para revelar el evento' : `Esperando a ${playerName}`}
+              {canReveal ? 'Elige una carta' : `Esperando a ${playerName}`}
             </small>
           </>
         ) : result ? (
           <div className={`round-event-result is-${result.outcome.toLowerCase()}`}>
             <Gift />
             <strong>{result.message}</strong>
-            <p>El resultado se ha aplicado en el servidor y ya aparece en la actividad.</p>
+            <p>El resultado ya se ha aplicado.</p>
             <button className="button button--primary" type="button" onClick={onDismiss}>
               <X /> Continuar partida
             </button>

@@ -1,17 +1,7 @@
 import type { GameState, MapConfig } from '@circuit/game-engine';
 import type { PublicRoomState } from '@circuit/shared';
 import { AnimatePresence, motion, useReducedMotion, type MotionStyle } from 'framer-motion';
-import {
-  Compass,
-  Crosshair,
-  Eye,
-  EyeOff,
-  Landmark,
-  Plane,
-  Scale,
-  ShieldAlert,
-  Sparkles
-} from 'lucide-react';
+import { Compass, Hotel, Home, Landmark, Plane, Scale, ShieldAlert, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { getAtlasMap, type VisualTile } from '../data/atlas';
@@ -31,10 +21,6 @@ interface RoutePoint {
   x: number;
   y: number;
 }
-
-type GraphicsPreset = 'AUTO' | 'LOW' | 'MEDIUM' | 'HIGH';
-const GRAPHICS_KEY = 'atlas:graphics:v1';
-const CINEMATIC_KEY = 'atlas:cinematic:v1';
 
 const WORLD_CAPITAL_POINTS: readonly RoutePoint[] = [
   { x: 42, y: 19 },
@@ -97,6 +83,16 @@ const GROUP_COLORS: Record<string, string> = {
   violet: '#80639c'
 };
 
+const COUNTRY_COLORS = [
+  '#53a06e',
+  '#5d8db7',
+  '#c68a3d',
+  '#b45d68',
+  '#8b72b8',
+  '#4fa4a6',
+  '#c36d46'
+] as const;
+
 export function GameBoard({
   state,
   room,
@@ -109,8 +105,6 @@ export function GameBoard({
 }: GameBoardProps) {
   const reduceMotion = useReducedMotion();
   const [rolling, setRolling] = useState(false);
-  const [graphics, setGraphics] = useState<GraphicsPreset>(() => loadGraphicsPreset());
-  const [cinematic, setCinematic] = useState(() => localStorage.getItem(CINEMATIC_KEY) !== 'false');
   const roomByPlayer = useMemo(
     () => new Map(room.players.map((player) => [player.id, player])),
     [room.players]
@@ -144,10 +138,11 @@ export function GameBoard({
   const currentId = state.turnOrder[state.currentPlayerIndex];
   const currentTileId = currentId ? state.players[currentId]?.positionTileId : undefined;
   const currentTileIndex = map.tiles.findIndex((tile) => tile.id === currentTileId);
-  const effectiveGraphics = resolveGraphicsPreset(graphics);
   const lastRollKey =
     [...state.activity].reverse().find((entry) => entry.type === 'DICE_ROLL')?.id ?? 'initial';
   const hasLastRoll = state.lastRoll !== null;
+  const turnStep = phaseStep(state.phase);
+  const coach = phaseCoach(state.phase, canRoll, canEndTurn);
 
   useEffect(() => {
     if (!hasLastRoll) return;
@@ -161,29 +156,17 @@ export function GameBoard({
     onRoll();
   }
 
-  function updateGraphics(value: GraphicsPreset): void {
-    setGraphics(value);
-    localStorage.setItem(GRAPHICS_KEY, value);
-  }
-
-  function toggleCinematic(): void {
-    setCinematic((value) => {
-      localStorage.setItem(CINEMATIC_KEY, String(!value));
-      return !value;
-    });
-  }
-
   return (
     <section
-      className={`board-stage world-route-board graphics-${effectiveGraphics.toLowerCase()}${cinematic ? ' is-cinematic' : ''}${map.tiles.length > 40 ? ' is-dense' : ''}`}
-      aria-label={`${map.config.name} world route board`}
+      className={`board-stage world-route-board simple-world-board graphics-medium is-cinematic${map.tiles.length >= 40 ? ' is-dense' : ''}`}
+      aria-label={`Tablero mundial ${map.config.name}`}
     >
       <motion.img
         className="world-map-art"
-        src="/assets/world-route-relief.png"
+        src="/assets/world-route-relief-v2.webp"
         alt=""
         draggable={false}
-        animate={cinematic && !reduceMotion ? { scale: [1.015, 1.035, 1.015] } : { scale: 1.015 }}
+        animate={!reduceMotion ? { scale: [1.002, 1.01, 1.002] } : { scale: 1.002 }}
         transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
       />
       <div className="world-map-depth" aria-hidden="true" />
@@ -205,15 +188,20 @@ export function GameBoard({
         </defs>
         {points.map((point, index) => {
           const next = points[(index + 1) % points.length]!;
+          const tile = map.tiles[index];
+          const nextTile = map.tiles[(index + 1) % map.tiles.length];
+          const countryRoute =
+            tile?.group && tile.group === nextTile?.group ? groupColor(tile.group) : null;
           return (
             <path
-              className={
-                index === (currentTileIndex - 1 + points.length) % points.length
-                  ? 'route-segment is-active'
-                  : 'route-segment'
-              }
+              className={`${index === (currentTileIndex - 1 + points.length) % points.length ? 'route-segment is-active' : 'route-segment'}${countryRoute ? ' is-country-route' : ''}`}
               d={curvePath(point, next)}
               key={`route-${index}`}
+              style={
+                countryRoute
+                  ? ({ '--route-country-color': countryRoute } as CSSProperties)
+                  : undefined
+              }
             />
           );
         })}
@@ -258,11 +246,12 @@ export function GameBoard({
               (propertyId) => state.properties[propertyId]?.ownerId === propertyState?.ownerId
             )
           );
+          const countryAnchor = countryPropertyIds[0] === tile.id;
           const upgradeLevel = propertyState?.upgradeLevel ?? 0;
           return (
             <button
               type="button"
-              className={`route-node route-node--${property ? 'city' : 'stop'} route-node--${tile.kind.toLowerCase()}${owner ? ' is-owned' : ''}${countryComplete ? ' is-complete-country' : ''}${upgradeLevel ? ' is-developed' : ''}${tile.id === currentTileId ? ' is-current' : ''}${point.x > 82 ? ' is-right-edge' : ''}${point.x < 18 ? ' is-left-edge' : ''}`}
+              className={`route-node route-node--${property ? 'city' : 'stop'} route-node--${tile.kind.toLowerCase()}${owner ? ' is-owned' : ''}${countryAnchor ? ' is-country-anchor' : ''}${countryComplete ? ' is-complete-country' : ''}${upgradeLevel ? ' is-developed' : ''}${tile.id === currentTileId ? ' is-current' : ''}${point.x > 82 ? ' is-right-edge' : ''}${point.x < 18 ? ' is-left-edge' : ''}`}
               key={tile.id}
               style={
                 {
@@ -285,22 +274,13 @@ export function GameBoard({
                 </small>
               </span>
               {owner ? <i className="route-owner" style={{ background: owner.color }} /> : null}
-              {upgradeLevel ? (
-                <span
-                  className="route-node__development"
-                  aria-label={`${upgradeLevel} improvements`}
-                >
-                  {Array.from({ length: upgradeLevel }, (_, level) => (
-                    <i key={level} />
-                  ))}
-                </span>
-              ) : null}
+              {upgradeLevel ? <DevelopmentMiniature level={upgradeLevel} /> : null}
             </button>
           );
         })}
       </div>
 
-      <div className="world-route-tokens" aria-label="Player positions">
+      <div className="world-route-tokens" aria-label="Posiciones de jugadores">
         <AnimatePresence>
           {Object.values(state.players).map((player, tokenIndex) => {
             const positionIndex = map.tiles.findIndex((tile) => tile.id === player.positionTileId);
@@ -332,48 +312,18 @@ export function GameBoard({
         </AnimatePresence>
       </div>
 
-      <div className="board-view-controls" aria-label="Board view controls">
-        <button type="button" onClick={toggleCinematic} aria-pressed={cinematic}>
-          {cinematic ? <Eye /> : <EyeOff />}
-          <span>{cinematic ? 'Living map' : 'Fixed map'}</span>
-        </button>
-        <label>
-          <span>Graphics</span>
-          <select
-            value={graphics}
-            onChange={(event) => updateGraphics(event.target.value as GraphicsPreset)}
-            aria-label="Graphics quality"
-          >
-            <option value="AUTO">Auto</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => onSelectTile(map.tiles[currentTileIndex] ?? map.tiles[0]!)}
-        >
-          <Crosshair /> <span>Center player</span>
-        </button>
-      </div>
-
       <div className="world-dice-dock">
-        <span className="world-dice-dock__label">{map.config.name}</span>
+        <span className="world-dice-dock__label">Tu jugada</span>
         <div
           className={rolling ? 'dice-pair is-rolling' : 'dice-pair'}
-          aria-label={state.lastRoll ? `Last roll ${state.lastRoll.total}` : 'Dice not rolled'}
+          aria-label={state.lastRoll ? `Última tirada ${state.lastRoll.total}` : 'Dados sin tirar'}
         >
           <Die value={state.lastRoll?.dice[0] ?? 3} rolling={rolling} side="left" />
           <Die value={state.lastRoll?.dice[1] ?? 5} rolling={rolling} side="right" />
         </div>
-        {state.lastRoll ? (
-          <p>
-            {state.lastRoll.dice[0]} + {state.lastRoll.dice[1]} · {state.lastRoll.total}
-          </p>
-        ) : (
-          <p>Roll to begin your journey</p>
-        )}
+        <p className="world-dice-dock__result">
+          {state.lastRoll ? `Resultado: ${state.lastRoll.total}` : 'Dados preparados'}
+        </p>
         {canEndTurn ? (
           <button
             className="button button--secondary board-roll"
@@ -381,7 +331,7 @@ export function GameBoard({
             disabled={pending}
             onClick={onEndTurn}
           >
-            End turn
+            Finalizar turno
           </button>
         ) : (
           <button
@@ -390,12 +340,52 @@ export function GameBoard({
             disabled={!canRoll || pending || rolling}
             onClick={roll}
           >
-            {rolling ? 'Rolling…' : 'Roll dice'}
+            {rolling
+              ? 'Tirando…'
+              : canRoll
+                ? 'Tirar dados'
+                : pending
+                  ? 'Sincronizando…'
+                  : 'Espera tu turno'}
           </button>
         )}
+        <span className="world-dice-dock__coach" role="status" aria-live="polite">
+          {coach}
+        </span>
+      </div>
+      <div className="monopoly-help-strip turn-progress" aria-label="Progreso del turno">
+        {['Tirar', 'Mover', 'Resolver'].map((label, index) => {
+          const step = index + 1;
+          return (
+            <span
+              className={step === turnStep ? 'is-active' : step < turnStep ? 'is-complete' : ''}
+              key={label}
+            >
+              <b>{step}</b> {label}
+            </span>
+          );
+        })}
       </div>
     </section>
   );
+}
+
+function DevelopmentMiniature({ level }: { level: number }) {
+  const Icon = level >= 5 ? Hotel : Home;
+  return (
+    <span
+      className={`route-node__development level-${Math.min(level, 4)}`}
+      aria-label={`${level} mejoras: ${developmentLabel(level)}`}
+    >
+      <Icon />
+      <i />
+    </span>
+  );
+}
+
+function developmentLabel(level: number): string {
+  if (level >= 5) return 'hotel';
+  return `${level} ${level === 1 ? 'casa' : 'casas'}`;
 }
 
 function RouteToken({
@@ -474,7 +464,7 @@ function RouteToken({
         scale: { duration: reduceMotion ? 0.05 : 0.65 }
       }}
       title={playerName}
-      aria-label={`${playerName} token`}
+      aria-label={`Ficha de ${playerName}`}
       data-player-id={playerId}
     >
       <span className="route-token__head" />
@@ -545,18 +535,6 @@ function curvePath(from: RoutePoint, to: RoutePoint, branch = false): string {
   return `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`;
 }
 
-function loadGraphicsPreset(): GraphicsPreset {
-  const stored = localStorage.getItem(GRAPHICS_KEY);
-  return stored === 'LOW' || stored === 'MEDIUM' || stored === 'HIGH' ? stored : 'AUTO';
-}
-
-function resolveGraphicsPreset(preset: GraphicsPreset): Exclude<GraphicsPreset, 'AUTO'> {
-  if (preset !== 'AUTO') return preset;
-  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
-  if (window.matchMedia('(max-width: 760px)').matches || memory <= 2) return 'LOW';
-  return memory >= 8 ? 'HIGH' : 'MEDIUM';
-}
-
 function tileIcon(kind: VisualTile['kind']) {
   switch (kind) {
     case 'START':
@@ -577,6 +555,36 @@ function tileIcon(kind: VisualTile['kind']) {
 
 function groupColor(group: string): string {
   if (GROUP_COLORS[group]) return GROUP_COLORS[group];
-  const index = Number(group.split('-').at(-1) ?? 0);
-  return ['#365f45', '#40627d', '#8c682e', '#7c4a53', '#6f8b6d'][index % 5]!;
+  let hash = 0;
+  for (const character of group) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return COUNTRY_COLORS[hash % COUNTRY_COLORS.length]!;
+}
+
+function phaseStep(phase: GameState['phase']): number {
+  if (phase === 'TURN_START' || phase === 'JAIL' || phase === 'ROLLING') return 1;
+  if (phase === 'MOVING' || phase === 'FLIGHT_DECISION') return 2;
+  return 3;
+}
+
+function phaseCoach(phase: GameState['phase'], canRoll: boolean, canEndTurn: boolean): string {
+  if (canRoll) return 'Lanza los dados para avanzar por tu ruta.';
+  if (canEndTurn) return 'Jugada resuelta. Termina el turno cuando estés listo.';
+  switch (phase) {
+    case 'ROLLING':
+      return 'Los dados están decidiendo tu recorrido.';
+    case 'MOVING':
+      return 'Tu ficha avanza casilla a casilla.';
+    case 'FLIGHT_DECISION':
+      return 'Elige si vuelas o continúas por tierra.';
+    case 'PROPERTY_DECISION':
+      return 'Decide si compras la ciudad o la subastas.';
+    case 'PAYMENT':
+      return 'Resuelve el pago pendiente para continuar.';
+    case 'ROUND_EVENT':
+      return 'La Cámara del Atlas tiene una sorpresa.';
+    case 'AUCTION':
+      return 'La ciudad está en subasta. Haz tu oferta.';
+    default:
+      return 'Sigue la acción iluminada en pantalla.';
+  }
 }

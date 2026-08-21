@@ -48,7 +48,7 @@ const mapPresentation: Readonly<
 > = {
   'world-capital-routes': {
     image: '/assets/world-diorama.webp',
-    eyebrow: '32 ciudades · 16 países · 6 aeropuertos',
+    eyebrow: '40 ciudades · 16 países',
     accent: '#173d52'
   },
   'neon-city': {
@@ -122,7 +122,7 @@ export const ATLAS_MODES: readonly ModePresentation[] = [
     name: 'Clásico',
     icon: '◆',
     description: 'Compra, negocia y construye hasta dominar el tablero.',
-    rules: ['30 rondas', '$3.200 iniciales', 'Reglas equilibradas'],
+    rules: ['30 rondas', 'Países y casas', 'Vuelos y cartas Atlas'],
     preset: {
       startingCash: 3200,
       turnTimerSeconds: 45,

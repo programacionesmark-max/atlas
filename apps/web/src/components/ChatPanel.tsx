@@ -58,7 +58,7 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
           placeholder="Escribe a la sala…"
           aria-label="Mensaje para la sala"
         />
-        <button type="submit" aria-label="Send message" disabled={!message.trim()}>
+        <button type="submit" aria-label="Enviar mensaje" disabled={!message.trim()}>
           <Send />
         </button>
       </form>
