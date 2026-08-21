@@ -180,6 +180,7 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
   listRooms(input: ListRoomsInput): PublicRoomSummary[] {
     return [...this.rooms.values()]
       .filter((room) => room.settings.visibility === 'PUBLIC')
+      .filter((room) => this.connectedPlayerCount(room) > 0)
       .filter((room) => !input.onlyJoinable || room.status === 'LOBBY')
       .filter((room) => input.mode === undefined || room.settings.mode === input.mode)
       .filter((room) => input.mapId === undefined || room.settings.mapId === input.mapId)
@@ -295,6 +296,7 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
         room.passwordHash === null &&
         room.settings.mode === input.mode &&
         room.settings.mapId === input.mapId &&
+        this.connectedPlayerCount(room) > 0 &&
         this.playerCount(room) < room.settings.maxPlayers
     );
     if (candidate)
@@ -639,8 +641,21 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
     if (existingTimer) clearTimeout(existingTimer);
     const timer = setTimeout(() => {
       this.disconnectTimers.delete(playerId);
-      if (room.hostPlayerId === playerId && !member.connected)
-        void room.queue.run(() => this.migrateHost(room));
+      void room.queue.run(async () => {
+        if (!this.rooms.has(room.id) || member.connected) return;
+        if (room.status === 'LOBBY' && this.connectedPlayerCount(room) === 0) {
+          this.rooms.delete(room.id);
+          this.roomIdByCode.delete(room.code);
+          await Promise.all(
+            [...room.members.values()].map((roomMember) =>
+              this.persistence.markMemberLeft(room.id, roomMember.playerId)
+            )
+          );
+          this.emit('roomsChanged');
+          return;
+        }
+        if (room.hostPlayerId === playerId) await this.migrateHost(room);
+      });
     }, this.config.disconnectGraceMs);
     timer.unref();
     this.disconnectTimers.set(playerId, timer);
@@ -811,6 +826,12 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
 
   private playerCount(room: ManagedRoom): number {
     return [...room.members.values()].filter((member) => member.role === 'PLAYER').length;
+  }
+
+  private connectedPlayerCount(room: ManagedRoom): number {
+    return [...room.members.values()].filter(
+      (member) => member.role === 'PLAYER' && member.connected
+    ).length;
   }
 
   private generateRoomCode(): string {

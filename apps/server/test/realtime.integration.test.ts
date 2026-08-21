@@ -6,6 +6,7 @@ import type {
   AuthoritativeGameState,
   ClientToServerEvents,
   PublicRoomState,
+  PublicRoomSummary,
   ServerToClientEvents,
   SessionReadyPayload
 } from '@circuit/shared';
@@ -332,6 +333,43 @@ describe('authoritative realtime server', () => {
     });
     if (!quickRoom.ok) throw new Error(quickRoom.error.message);
     expect(quickRoom.data.id).not.toBe(privateRoom.data.id);
+  });
+
+  it('does not match quick play into an abandoned public lobby', async () => {
+    const staleHost = await connectClient(url);
+    sockets.push(staleHost);
+    const staleSession = await createSession(staleHost, 'Stale Host');
+    if (!staleSession.ok) throw new Error('Session setup failed');
+    const staleRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      staleHost.emit('room:create', { settings: SETTINGS }, resolve);
+    });
+    if (!staleRoom.ok) throw new Error(staleRoom.error.message);
+
+    staleHost.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const freshPlayer = await connectClient(url);
+    sockets.push(freshPlayer);
+    const freshSession = await createSession(freshPlayer, 'Fresh Player');
+    if (!freshSession.ok) throw new Error('Session setup failed');
+    const visibleRooms = await new Promise<Ack<PublicRoomSummary[]>>((resolve) => {
+      freshPlayer.emit('rooms:list', { onlyJoinable: true, limit: 30 }, resolve);
+    });
+    expect(visibleRooms).toMatchObject({ ok: true, data: [] });
+
+    const quickRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      freshPlayer.emit(
+        'room:quickPlay',
+        { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4 },
+        resolve
+      );
+    });
+    expect(quickRoom).toMatchObject({
+      ok: true,
+      data: { status: 'LOBBY', visibility: 'PUBLIC', playerCount: 1 }
+    });
+    if (!quickRoom.ok) throw new Error(quickRoom.error.message);
+    expect(quickRoom.data.id).not.toBe(staleRoom.data.id);
   });
 
   it('starts an eight-player room without divergent membership', async () => {
