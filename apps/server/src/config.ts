@@ -13,6 +13,8 @@ export interface ServerConfig {
   logLevel: 'silent' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
 }
 
+const OFFICIAL_WEB_ORIGINS = ['https://atlas-estates-world.vercel.app'] as const;
+
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -27,17 +29,20 @@ export function loadServerConfig(overrides: Partial<ServerConfig> = {}): ServerC
   if (sessionSecret.length < 32)
     throw new Error('SESSION_SECRET must contain at least 32 characters');
 
+  const configuredCorsOrigins = (
+    process.env.CORS_ORIGINS ?? (isProduction ? 'http://localhost:5173,http://127.0.0.1:5173' : '*')
+  )
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const corsOrigins = isProduction
+    ? [...new Set([...configuredCorsOrigins, ...OFFICIAL_WEB_ORIGINS])]
+    : configuredCorsOrigins;
+
   return {
     host: overrides.host ?? process.env.HOST ?? '0.0.0.0',
     port: overrides.port ?? positiveInteger(process.env.PORT, 3001),
-    corsOrigins:
-      overrides.corsOrigins ??
-      (
-        process.env.CORS_ORIGINS ??
-        (isProduction ? 'http://localhost:5173,http://127.0.0.1:5173' : '*')
-      )
-        .split(',')
-        .map((value) => value.trim()),
+    corsOrigins: overrides.corsOrigins ?? corsOrigins,
     sessionSecret: overrides.sessionSecret ?? sessionSecret,
     reconnectTtlMs:
       overrides.reconnectTtlMs ??
