@@ -372,6 +372,48 @@ describe('authoritative realtime server', () => {
     expect(quickRoom.data.id).not.toBe(staleRoom.data.id);
   });
 
+  it('does not match quick play into a connected lobby with legacy rules', async () => {
+    const legacyHost = await connectClient(url);
+    const freshPlayer = await connectClient(url);
+    sockets.push(legacyHost, freshPlayer);
+    const [legacySession, freshSession] = await Promise.all([
+      createSession(legacyHost, 'Legacy Host'),
+      createSession(freshPlayer, 'Current Player')
+    ]);
+    if (!legacySession.ok || !freshSession.ok) throw new Error('Session setup failed');
+    const legacyRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      legacyHost.emit(
+        'room:create',
+        {
+          settings: {
+            ...SETTINGS,
+            rules: { ...SETTINGS.rules, startingCash: 1500, maxRounds: null }
+          }
+        },
+        resolve
+      );
+    });
+    if (!legacyRoom.ok) throw new Error(legacyRoom.error.message);
+
+    const quickRoom = await new Promise<Ack<PublicRoomState>>((resolve) => {
+      freshPlayer.emit(
+        'room:quickPlay',
+        { mode: 'CLASSIC', mapId: 'neon-city', maxPlayers: 4 },
+        resolve
+      );
+    });
+    expect(quickRoom).toMatchObject({
+      ok: true,
+      data: {
+        status: 'LOBBY',
+        playerCount: 1,
+        settings: { rules: { startingCash: 3200, maxRounds: 30 } }
+      }
+    });
+    if (!quickRoom.ok) throw new Error(quickRoom.error.message);
+    expect(quickRoom.data.id).not.toBe(legacyRoom.data.id);
+  });
+
   it('starts an eight-player room without divergent membership', async () => {
     const clients = await Promise.all(Array.from({ length: 8 }, () => connectClient(url)));
     sockets.push(...clients);

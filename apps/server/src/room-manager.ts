@@ -289,6 +289,7 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
     input: QuickPlayInput,
     socketId: string
   ): Promise<PublicRoomState> {
+    const expectedSettings = this.quickPlaySettings(input);
     const candidate = [...this.rooms.values()].find(
       (room) =>
         room.status === 'LOBBY' &&
@@ -297,6 +298,7 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
         room.settings.mode === input.mode &&
         room.settings.mapId === input.mapId &&
         this.connectedPlayerCount(room) > 0 &&
+        this.hasCompatibleQuickPlaySettings(room.settings, expectedSettings) &&
         this.playerCount(room) < room.settings.maxPlayers
     );
     if (candidate)
@@ -311,7 +313,7 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
       );
     return this.createRoom(
       session,
-      { settings: this.quickPlaySettings(input), replaceExisting: input.replaceExisting },
+      { settings: expectedSettings, replaceExisting: input.replaceExisting },
       socketId
     );
   }
@@ -776,6 +778,23 @@ export class RoomManager extends EventEmitter<RoomManagerEvents> {
         economicEventsEnabled: effective.eventDeckEnabled ?? settings.rules.economicEventsEnabled
       }
     };
+  }
+
+  private hasCompatibleQuickPlaySettings(settings: RoomSettings, expected: RoomSettings): boolean {
+    return (
+      settings.name === expected.name &&
+      settings.maxPlayers === expected.maxPlayers &&
+      settings.allowSpectators === expected.allowSpectators &&
+      settings.rules.startingCash === expected.rules.startingCash &&
+      settings.rules.turnTimerSeconds === expected.rules.turnTimerSeconds &&
+      settings.rules.victoryMode === expected.rules.victoryMode &&
+      settings.rules.maxRounds === expected.rules.maxRounds &&
+      settings.rules.netWorthTarget === expected.rules.netWorthTarget &&
+      settings.rules.auctionsEnabled === expected.rules.auctionsEnabled &&
+      settings.rules.tradesEnabled === expected.rules.tradesEnabled &&
+      settings.rules.economicEventsEnabled === expected.rules.economicEventsEnabled &&
+      settings.rules.doublesExtraRoll === expected.rules.doublesExtraRoll
+    );
   }
 
   private createMember(
